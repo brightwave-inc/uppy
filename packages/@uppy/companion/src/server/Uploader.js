@@ -147,7 +147,7 @@ export default class Uploader {
    * @property {boolean} [useFormData]
    * @property {number} [chunkSize]
    * @property {any} [clientRequest]
-   * @property {any} endpointOptions
+   * @property {any} [endpointOptions]
    * @property {string} [providerName]
    *
    * @param {UploaderOptions} optionsIn
@@ -638,13 +638,19 @@ export default class Uploader {
     return tusRet
   }
 
-  static buildRequestHeaders(clientRequest, additionalHeaders, endpointOptions) {
-    const finalHeaders = headerSanitize(additionalHeaders || {});
+  static buildRequestHeaders(
+    clientRequest,
+    additionalHeaders,
+    endpointOptions,
+  ) {
+    const finalHeaders = headerSanitize(additionalHeaders || {})
 
-    if (endpointOptions.proxyAuth === "true") {
-      const authCookie = clientRequest.cookies[endpointOptions.proxyAuthCookieName]
+    if (endpointOptions.proxyAuth === 'true') {
+      const authCookie =
+        clientRequest.cookies[endpointOptions.proxyAuthCookieName]
       if (authCookie) {
-        finalHeaders[endpointOptions.proxyAuthHeaderName] = `Bearer ${authCookie}`
+        finalHeaders[endpointOptions.proxyAuthHeaderName] =
+          `Bearer ${authCookie}`
       }
     }
 
@@ -653,7 +659,7 @@ export default class Uploader {
 
   async #uploadMultipart(stream) {
     const endpointOptions = this.options.endpointOptions || {}
-    const {endpoint} = endpointOptions
+    const { endpoint } = endpointOptions
 
     if (!endpoint) {
       throw new Error('No multipart endpoint set')
@@ -683,7 +689,11 @@ export default class Uploader {
     })
 
     const reqOptions = {
-      headers: Uploader.buildRequestHeaders(this.options.clientRequest, this.options.headers, endpointOptions),
+      headers: Uploader.buildRequestHeaders(
+        this.options.clientRequest,
+        this.options.headers,
+        endpointOptions,
+      ),
     }
 
     if (this.options.useFormData) {

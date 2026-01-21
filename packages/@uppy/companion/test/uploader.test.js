@@ -216,6 +216,7 @@ describe('uploader', () => {
     const opts = {
       companionOptions: { ...companionOptions, ...extraCompanionOpts },
       endpoint: `http://${address}`,
+      endpointOptions: { endpoint: `http://${address}` },
       protocol: 'multipart',
       size: includeSize ? fileContent.length : undefined,
       metadata,

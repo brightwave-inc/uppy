@@ -63,10 +63,18 @@ export async function withProviderErrorHandling({
         knownErr = new ProviderAuthError()
       } else if (isNotFoundError({ statusCode, body })) {
         const message = getErrorMessage({ statusCode, body })
-        knownErr = new ProviderNotFoundError(message, statusCode, requestContext)
+        knownErr = new ProviderNotFoundError(
+          message,
+          statusCode,
+          requestContext,
+        )
       } else if (isPermissionError({ statusCode, body })) {
         const message = getErrorMessage({ statusCode, body })
-        knownErr = new ProviderPermissionError(message, statusCode, requestContext)
+        knownErr = new ProviderPermissionError(
+          message,
+          statusCode,
+          requestContext,
+        )
       } else if (isUserFacingError({ statusCode, body })) {
         knownErr = new ProviderUserError({
           message: getErrorMessage({ statusCode, body }),
