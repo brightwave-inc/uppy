@@ -29,7 +29,7 @@ jobs:
         id: yarn-cache-dir-path
         run:
           echo "dir=$(corepack yarn config get cacheFolder)" >> $GITHUB_OUTPUT
-      - uses: actions/cache@v5
+      - uses: actions/cache@v4
         id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
         with:
           path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
@@ -72,7 +72,7 @@ jobs:
           github.sha }}.tgz
       - name: Upload artifact
         if: success()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v5
         with:
           name: packages
           path: /tmp/artifacts/
@@ -86,10 +86,9 @@ jobs:
         bundler-version: [latest]
     steps:
       - name: Download uppy tarball
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v4
         with:
-          name: packages
-          path: /tmp/packages/
+          path: /tmp/
       - name: Extract tarball
         run:
           tar -xzf /tmp/packages/uppy-${{ github.sha }}.tgz --strip-components 1
@@ -127,10 +126,9 @@ jobs:
         bundler-version: [latest]
     steps:
       - name: Download uppy tarball
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v4
         with:
-          name: packages
-          path: /tmp/packages/
+          path: /tmp/
       - name: Extract tarball
         run:
           tar -xzf /tmp/packages/uppy-${{ github.sha }}.tgz --strip-components 1
@@ -170,10 +168,9 @@ jobs:
         bundler-version: [latest]
     steps:
       - name: Download uppy tarball
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v4
         with:
-          name: packages
-          path: /tmp/packages/
+          path: /tmp/
       - name: Extract tarball
         run:
           tar -xzf /tmp/packages/uppy-${{ github.sha }}.tgz --strip-components 1
@@ -201,10 +198,9 @@ jobs:
         bundler-version: [latest]
     steps:
       - name: Download uppy tarball
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v4
         with:
-          name: packages
-          path: /tmp/packages/
+          path: /tmp/
       - name: Extract tarball
         run:
           tar -xzf /tmp/packages/uppy-${{ github.sha }}.tgz --strip-components 1
@@ -227,10 +223,9 @@ jobs:
         bundler-version: [latest]
     steps:
       - name: Download uppy tarball
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v4
         with:
-          name: packages
-          path: /tmp/packages/
+          path: /tmp/
       - name: Extract tarball
         run:
           tar -xzf /tmp/packages/uppy-${{ github.sha }}.tgz --strip-components 1
