@@ -40,6 +40,42 @@ export class ProviderAuthError extends ProviderApiError {
   }
 }
 
+/**
+ * ProviderNotFoundError is error returned when a provider resource is not found (404)
+ * Includes request context for better debugging
+ */
+export class ProviderNotFoundError extends ProviderApiError {
+  /**
+   * @param {string} message error message
+   * @param {number} statusCode the http status code (default: 404)
+   * @param {object} requestContext additional context about the request (directory, id, query, etc.)
+   */
+  constructor(message, statusCode = 404, requestContext = {}) {
+    super(message, statusCode)
+    this.name = 'ProviderNotFoundError'
+    this.isNotFoundError = true
+    this.requestContext = requestContext
+  }
+}
+
+/**
+ * ProviderPermissionError is error returned when access to a provider resource is denied (403)
+ * Includes request context for better debugging
+ */
+export class ProviderPermissionError extends ProviderApiError {
+  /**
+   * @param {string} message error message
+   * @param {number} statusCode the http status code (default: 403)
+   * @param {object} requestContext additional context about the request
+   */
+  constructor(message, statusCode = 403, requestContext = {}) {
+    super(message, statusCode)
+    this.name = 'ProviderPermissionError'
+    this.isPermissionError = true
+    this.requestContext = requestContext
+  }
+}
+
 export function parseHttpError(err) {
   if (err?.name === 'HTTPError') {
     return {
@@ -66,6 +102,32 @@ function errorToResponse(err) {
   // @ts-ignore
   if (err?.isAuthError) {
     return { code: 401, json: { message: err.message } }
+  }
+
+  // @ts-ignore
+  if (err?.isNotFoundError) {
+    return {
+      code: 404,
+      json: {
+        error: 'not_found',
+        message: err.message,
+        // @ts-ignore
+        requestContext: err.requestContext,
+      },
+    }
+  }
+
+  // @ts-ignore
+  if (err?.isPermissionError) {
+    return {
+      code: 403,
+      json: {
+        error: 'permission_denied',
+        message: err.message,
+        // @ts-ignore
+        requestContext: err.requestContext,
+      },
+    }
   }
 
   if (err?.name === 'ValidationError') {
