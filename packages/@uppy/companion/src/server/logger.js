@@ -46,7 +46,7 @@ const styleText =
  * @typedef {Parameters<styleText>[0]} Colors
  *
  * @param {object} params
- * @param {string | Error} params.arg the message or error to log
+ * @param {string | Error | object} params.arg the message or error to log
  * @param {string} params.tag a unique tag to easily search for this message
  * @param {string} params.level error | info | debug
  * @param {string} [params.traceId] a unique id to easily trace logs tied to a request
@@ -107,7 +107,7 @@ export function warn(msg, tag, traceId) {
 /**
  * ERROR level log
  *
- * @param {string | Error} msg the message to log
+ * @param {string | Error | object} msg the message to log
  * @param {string} [tag] a unique tag to easily search for this message
  * @param {string} [traceId] a unique id to easily trace logs tied to a request
  */
