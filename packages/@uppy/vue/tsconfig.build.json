@@ -2,7 +2,6 @@
   "extends": "../../../tsconfig.shared",
   "compilerOptions": {
     "outDir": "./lib",
-    "resolveJsonModule": false,
     "rootDir": "./src"
   },
   "include": ["./src/**/*.*"],
@@ -12,16 +11,10 @@
       "path": "../core/tsconfig.build.json"
     },
     {
+      "path": "../components/tsconfig.build.json"
+    },
+    {
       "path": "../dashboard/tsconfig.build.json"
-    },
-    {
-      "path": "../drag-drop/tsconfig.build.json"
-    },
-    {
-      "path": "../file-input/tsconfig.build.json"
-    },
-    {
-      "path": "../progress-bar/tsconfig.build.json"
     },
     {
       "path": "../status-bar/tsconfig.build.json"

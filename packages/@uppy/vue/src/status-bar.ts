@@ -1,13 +1,13 @@
-import { defineComponent, ref, h, type PropType } from 'vue'
+import type { Uppy } from '@uppy/core'
 import StatusBarPlugin, { type StatusBarOptions } from '@uppy/status-bar'
-import { Uppy } from '@uppy/core'
+import { defineComponent, h, type PropType, ref } from 'vue'
 import useUppy from './useUppy.js'
 
 export default defineComponent({
   name: 'StatusBar',
   props: {
     uppy: {
-      type: Uppy<any, any>,
+      type: Object as PropType<Uppy<any, any>>,
       required: true,
     },
     props: {
@@ -26,7 +26,7 @@ export default defineComponent({
         target: containerRef.value,
       }
       uppy.use(StatusBarPlugin, options)
-      pluginRef.value = uppy.getPlugin(options.id) as StatusBarPlugin<any, any>
+      pluginRef.value = uppy.getPlugin(options.id)!
     }
 
     useUppy(onMount, pluginRef, props.uppy, propsRef)

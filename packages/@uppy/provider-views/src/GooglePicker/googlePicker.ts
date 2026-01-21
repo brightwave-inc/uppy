@@ -1,6 +1,7 @@
-import { type MutableRef } from 'preact/hooks'
+import type { MutableRef } from 'preact/hooks'
 
 // https://developers.google.com/photos/picker/reference/rest/v1/mediaItems
+// Note that the google api doc is not correct, hence some things are optional here but not in their docs
 export interface MediaItemBase {
   id: string
   createTime: string
@@ -9,8 +10,6 @@ export interface MediaItemBase {
 interface MediaFileMetadataBase {
   width: number
   height: number
-  cameraMake: string
-  cameraModel: string
 }
 
 interface MediaFileBase {
@@ -24,7 +23,9 @@ export interface VideoMediaItem extends MediaItemBase {
   mediaFile: MediaFileBase & {
     mediaFileMetadata: MediaFileMetadataBase & {
       videoMetadata: {
-        fps: number
+        cameraMake?: string
+        cameraModel?: string
+        fps?: number
         processingStatus: 'UNSPECIFIED' | 'PROCESSING' | 'READY' | 'FAILED'
       }
     }
@@ -35,11 +36,13 @@ export interface PhotoMediaItem extends MediaItemBase {
   type: 'PHOTO'
   mediaFile: MediaFileBase & {
     mediaFileMetadata: MediaFileMetadataBase & {
-      photoMetadata: {
-        focalLength: number
-        apertureFNumber: number
-        isoEquivalent: number
-        exposureTime: string
+      photoMetadata?: {
+        cameraMake?: string
+        cameraModel?: string
+        focalLength?: number
+        apertureFNumber?: number
+        isoEquivalent?: number
+        exposureTime?: string
       }
     }
   }
@@ -47,10 +50,14 @@ export interface PhotoMediaItem extends MediaItemBase {
 
 export interface UnspecifiedMediaItem extends MediaItemBase {
   type: 'TYPE_UNSPECIFIED'
-  mediaFile: MediaFileBase
+  mediaFile: MediaFileBase & {
+    mediaFileMetadata: MediaFileMetadataBase
+  }
 }
 
 export type MediaItem = VideoMediaItem | PhotoMediaItem | UnspecifiedMediaItem
+
+export type MediaType = MediaItem['type']
 
 // https://developers.google.com/photos/picker/reference/rest/v1/sessions
 export interface PickingSession {
@@ -77,6 +84,7 @@ export interface PickedDriveItem extends PickedItemBase {
 export interface PickedPhotosItem extends PickedItemBase {
   platform: 'photos'
   url: string
+  metadata?: Record<string, string | number> // I think string and number is OK in Companion
 }
 
 export type PickedItem = PickedPhotosItem | PickedDriveItem
@@ -153,9 +161,9 @@ export async function authorize({
   const response = await new Promise<google.accounts.oauth2.TokenResponse>(
     (resolve, reject) => {
       const scopes =
-        pickerType === 'drive' ?
-          ['https://www.googleapis.com/auth/drive.file']
-        : ['https://www.googleapis.com/auth/photospicker.mediaitems.readonly']
+        pickerType === 'drive'
+          ? ['https://www.googleapis.com/auth/drive.file']
+          : ['https://www.googleapis.com/auth/photospicker.mediaitems.readonly']
 
       const tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: clientId,
@@ -201,12 +209,16 @@ export async function showDrivePicker({
   appId,
   onFilesPicked,
   signal,
+  onLoadingChange,
+  onError,
 }: {
   token: string
   apiKey: string
   appId: string
   onFilesPicked: (files: PickedItem[], accessToken: string) => void
   signal: AbortSignal | undefined
+  onLoadingChange: (loading: boolean) => void
+  onError: (err: unknown) => void
 }): Promise<void> {
   // google drive picker will crash hard if given an invalid token, so we need to check it first
   // https://github.com/transloadit/uppy/pull/5443#pullrequestreview-2452439265
@@ -214,18 +226,88 @@ export async function showDrivePicker({
     throw new InvalidTokenError()
   }
 
-  const onPicked = (picked: google.picker.ResponseObject) => {
-    if (picked.action === google.picker.Action.PICKED) {
-      // console.log('Picker response', JSON.stringify(picked, null, 2));
-      onFilesPicked(
-        picked['docs'].map((doc) => ({
+  async function listFilesInDriveFolder({
+    doc,
+    token,
+    signal,
+  }: {
+    doc: PickedItemBase
+    token: string
+    signal?: AbortSignal
+  }): Promise<PickedDriveItem[]> {
+    if (doc.mimeType !== 'application/vnd.google-apps.folder') {
+      return [
+        {
           platform: 'drive',
-          id: doc['id'],
-          name: doc['name'],
-          mimeType: doc['mimeType'],
-        })),
-        token,
+          id: doc.id,
+          name: doc.name,
+          mimeType: doc.mimeType,
+        },
+      ]
+    }
+
+    const headers = getAuthHeader(token)
+    const items: PickedDriveItem[] = []
+    let pageToken: string | undefined
+
+    do {
+      const params = new URLSearchParams({
+        q: `'${doc.id.replace(/'/g, "\\'")}' in parents and trashed = false`,
+        fields: 'nextPageToken, files(id, name, mimeType)',
+        pageSize: '1000',
+        ...(pageToken && { pageToken }),
+      })
+      const res = await fetch(
+        `https://www.googleapis.com/drive/v3/files?${params.toString()}`,
+        { headers, signal },
       )
+
+      if (!res.ok) {
+        throw new Error(
+          `Failed to list folder contents for '${doc.name}' (${doc.id}): ${res.status} ${res.statusText}`,
+        )
+      }
+      const json: { nextPageToken?: string; files: PickedItemBase[] } =
+        await res.json()
+      pageToken = json.nextPageToken
+
+      for (const file of json.files) {
+        items.push(
+          ...(await listFilesInDriveFolder({ doc: file, token, signal })),
+        )
+      }
+    } while (pageToken)
+
+    return items
+  }
+
+  const onPicked = async (picked: google.picker.ResponseObject) => {
+    if (picked.action !== google.picker.Action.PICKED) return
+
+    try {
+      onLoadingChange(true)
+
+      // console.log('Picker response', JSON.stringify(picked, null, 2));
+      const results: PickedDriveItem[] = []
+      for (const doc of picked.docs) {
+        if (doc.mimeType === 'application/vnd.google-apps.folder') {
+          results.push(
+            ...(await listFilesInDriveFolder({ doc, token, signal })),
+          )
+        } else {
+          results.push({
+            platform: 'drive',
+            id: doc.id,
+            name: doc.name,
+            mimeType: doc.mimeType,
+          })
+        }
+      }
+      onFilesPicked(results, token)
+    } catch (err) {
+      onError(err)
+    } finally {
+      onLoadingChange(false)
     }
   }
 
@@ -240,7 +322,7 @@ export async function showDrivePicker({
         .setIncludeFolders(true)
         // Note: setEnableDrives doesn't seem to work
         // .setEnableDrives(true)
-        .setSelectFolderEnabled(false)
+        .setSelectFolderEnabled(true)
         .setMode(google.picker.DocsViewMode.LIST),
     )
     // NOTE: photos is broken and results in an error being returned from Google
@@ -309,7 +391,7 @@ async function resolvePickedPhotos({
   do {
     const pageSize = 100
     const response = await fetch(
-      `https://photospicker.googleapis.com/v1/mediaItems?${new URLSearchParams({ sessionId: pickingSession.id, pageSize: String(pageSize) }).toString()}`,
+      `https://photospicker.googleapis.com/v1/mediaItems?${new URLSearchParams({ sessionId: pickingSession.id, pageSize: String(pageSize), ...(pageToken && { pageToken }) }).toString()}`,
       { headers, signal },
     )
     if (!response.ok) throw new Error('Failed to get a media items')
@@ -322,33 +404,69 @@ async function resolvePickedPhotos({
     mediaItems.push(...batchMediaItems)
   } while (pageToken)
 
-  // todo show alert instead about invalid picked files?
+  // Filter out items that aren't fully processed or ready
   mediaItems = mediaItems.flatMap((i) =>
-    (
-      i.type === 'PHOTO' ||
-      (i.type === 'VIDEO' &&
-        i.mediaFile.mediaFileMetadata.videoMetadata.processingStatus ===
-          'READY')
-    ) ?
-      [i]
-    : [],
+    i.type === 'PHOTO' ||
+    (i.type === 'VIDEO' &&
+      i.mediaFile.mediaFileMetadata.videoMetadata.processingStatus === 'READY')
+      ? [i]
+      : [],
   )
 
-  return mediaItems.map(
-    ({
+  // Transform media items into picked items with appropriate metadata
+  return mediaItems.map((mediaItem) => {
+    const {
       id,
       type,
-      // we want the original resolution, so we don't append any parameter to the baseUrl
-      // https://developers.google.com/photos/library/guides/access-media-items#base-urls
       mediaFile: { mimeType, filename, baseUrl },
-    }) => ({
+    } = mediaItem
+
+    return {
       platform: 'photos' as const,
       id,
       mimeType,
+      // we want the original resolution, so we don't append any parameter to the baseUrl
+      // https://developers.google.com/photos/library/guides/access-media-items#base-urls
       url: type === 'VIDEO' ? `${baseUrl}=dv` : `${baseUrl}=d`, // dv to download video, d to get original image (non cropped)
       name: filename,
-    }),
-  )
+      metadata: {
+        // Note that metadata keys `filename` and `type` have special meanings in Companion
+        // and should not be overridden
+        googlePhotosFileType: mediaItem.type,
+        createTime: mediaItem.createTime,
+
+        width: mediaItem.mediaFile.mediaFileMetadata.width,
+        height: mediaItem.mediaFile.mediaFileMetadata.height,
+
+        ...(mediaItem.type === 'PHOTO' && {
+          cameraMake:
+            mediaItem.mediaFile.mediaFileMetadata.photoMetadata?.cameraMake,
+          cameraModel:
+            mediaItem.mediaFile.mediaFileMetadata.photoMetadata?.cameraModel,
+          focalLength:
+            mediaItem.mediaFile.mediaFileMetadata.photoMetadata?.focalLength,
+          apertureFNumber:
+            mediaItem.mediaFile.mediaFileMetadata.photoMetadata
+              ?.apertureFNumber,
+          isoEquivalent:
+            mediaItem.mediaFile.mediaFileMetadata.photoMetadata?.isoEquivalent,
+          exposureTime:
+            mediaItem.mediaFile.mediaFileMetadata.photoMetadata?.exposureTime,
+        }),
+
+        ...(mediaItem.type === 'VIDEO' && {
+          cameraMake:
+            mediaItem.mediaFile.mediaFileMetadata.videoMetadata.cameraMake,
+          cameraModel:
+            mediaItem.mediaFile.mediaFileMetadata.videoMetadata.cameraModel,
+          fps: mediaItem.mediaFile.mediaFileMetadata.videoMetadata.fps,
+          processingStatus:
+            mediaItem.mediaFile.mediaFileMetadata.videoMetadata
+              .processingStatus,
+        }),
+      },
+    }
+  })
 }
 
 export async function pollPickingSession({
@@ -407,12 +525,10 @@ export async function pollPickingSession({
             pickingSession,
             signal,
           })
-          // eslint-disable-next-line no-param-reassign
           pickingSessionRef.current = undefined
           onFilesPicked(resolvedPhotos, accessToken)
         }
         if (pickingSession.pollingConfig.timeoutIn === '0s') {
-          // eslint-disable-next-line no-param-reassign
           pickingSessionRef.current = undefined
         }
       }

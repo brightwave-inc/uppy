@@ -1,18 +1,20 @@
-import UserFacingApiError from '@uppy/utils/lib/UserFacingApiError'
-// eslint-disable-next-line import/no-extraneous-dependencies
-import pRetry, { AbortError } from 'p-retry'
-
-import fetchWithNetworkError from '@uppy/utils/lib/fetchWithNetworkError'
-import ErrorWithCause from '@uppy/utils/lib/ErrorWithCause'
-import getSocketHost from '@uppy/utils/lib/getSocketHost'
-
 import type Uppy from '@uppy/core'
-import type { UppyFile, Meta, Body } from '@uppy/utils/lib/UppyFile'
-import type { RequestOptions } from '@uppy/utils/lib/CompanionClientProvider'
+import type {
+  Body,
+  Meta,
+  RemoteUppyFile,
+  RequestOptions,
+  UppyFile,
+} from '@uppy/utils'
+import {
+  ErrorWithCause,
+  fetchWithNetworkError,
+  getSocketHost,
+  UserFacingApiError,
+} from '@uppy/utils'
+import pRetry, { AbortError } from 'p-retry'
+import packageJson from '../package.json' with { type: 'json' }
 import AuthError from './AuthError.js'
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore We don't want TS to generate types for the package.json
-import packageJson from '../package.json'
 
 type CompanionHeaders = Record<string, string> | undefined
 
@@ -62,7 +64,7 @@ async function handleJSONResponse<ResJson>(res: Response): Promise<ResJson> {
   }
 
   let errMsg = `Failed request with status: ${res.status}. ${res.statusText}`
-  let errData
+  let errData: any
   try {
     errData = await res.json()
 
@@ -80,14 +82,14 @@ async function handleJSONResponse<ResJson>(res: Response): Promise<ResJson> {
   throw new HttpError({ statusCode: res.status, message: errMsg })
 }
 
-function emitSocketProgress(
-  uploader: { uppy: Uppy<any, any> },
+function emitSocketProgress<M extends Meta, B extends Body>(
+  uploader: { uppy: Uppy<M, B> },
   progressData: {
     progress: string // pre-formatted percentage number as a string
     bytesTotal: number
     bytesUploaded: number
   },
-  file: UppyFile<any, any>,
+  file: UppyFile<M, B>,
 ): void {
   const { progress, bytesUploaded, bytesTotal } = progressData
   if (progress) {
@@ -127,18 +129,18 @@ export default class RequestClient<M extends Meta, B extends Body> {
   get hostname(): string {
     const { companion } = this.uppy.getState()
     const host = this.opts.companionUrl
-    return stripSlash(companion && companion[host] ? companion[host] : host)
+    return stripSlash(companion?.[host] ? companion[host] : host)
   }
 
   async headers(emptyBody = false): Promise<Record<string, string>> {
     const defaultHeaders = {
       Accept: 'application/json',
-      ...(emptyBody ? undefined : (
-        {
-          // Passing those headers on requests with no data forces browsers to first make a preflight request.
-          'Content-Type': 'application/json',
-        }
-      )),
+      ...(emptyBody
+        ? undefined
+        : {
+            // Passing those headers on requests with no data forces browsers to first make a preflight request.
+            'Content-Type': 'application/json',
+          }),
     }
 
     return {
@@ -240,7 +242,7 @@ export default class RequestClient<M extends Meta, B extends Body> {
    * uploading or is otherwise done (failed, canceled)
    */
   async uploadRemoteFile(
-    file: UppyFile<M, B>,
+    file: RemoteUppyFile<M, B>,
     reqBody: Record<string, unknown>,
     options: { signal: AbortSignal; getQueue: () => any },
   ): Promise<void> {
@@ -266,7 +268,7 @@ export default class RequestClient<M extends Meta, B extends Body> {
             async (
               ...args: [
                 {
-                  file: UppyFile<M, B>
+                  file: RemoteUppyFile<M, B>
                   postBody: Record<string, unknown>
                   signal: AbortSignal
                 },
@@ -308,7 +310,7 @@ export default class RequestClient<M extends Meta, B extends Body> {
           this.uppy.setFileState(file.id, { serverToken })
 
           return this.#awaitRemoteFileUpload({
-            file: this.uppy.getFile(file.id), // re-fetching file because it might have changed in the meantime
+            file: this.uppy.getFile(file.id) as RemoteUppyFile<M, B>, // re-fetching file because it might have changed in the meantime
             queue: getQueue(),
             signal,
           })
@@ -338,7 +340,7 @@ export default class RequestClient<M extends Meta, B extends Body> {
     postBody,
     signal,
   }: {
-    file: UppyFile<M, B>
+    file: RemoteUppyFile<M, B>
     postBody: Record<string, unknown>
     signal: AbortSignal
   }): Promise<string> => {
@@ -368,7 +370,7 @@ export default class RequestClient<M extends Meta, B extends Body> {
     queue,
     signal,
   }: {
-    file: UppyFile<M, B>
+    file: RemoteUppyFile<M, B>
     queue: any
     signal: AbortSignal
   }): Promise<void> {
@@ -443,7 +445,6 @@ export default class RequestClient<M extends Meta, B extends Body> {
             await queue
               .wrapPromiseFunction(async () => {
                 const reconnectWebsocket = async () =>
-                  // eslint-disable-next-line promise/param-names
                   new Promise((_, rejectSocket) => {
                     socket = new WebSocket(`${host}/api/${token}`)
 
@@ -498,8 +499,9 @@ export default class RequestClient<M extends Meta, B extends Body> {
                               {
                                 uploadURL: payload.url,
                                 status: payload.response?.status ?? 200,
-                                body:
-                                  text ? (JSON.parse(text) as B) : undefined,
+                                body: text
+                                  ? (JSON.parse(text) as B)
+                                  : undefined,
                               },
                             )
                             socketAbortController?.abort?.()

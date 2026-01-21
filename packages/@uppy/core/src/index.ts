@@ -1,6 +1,20 @@
-export { default, default as Uppy } from './Uppy.js'
+export type { Store } from '@uppy/store-default'
 export type {
-  State,
+  Body,
+  Meta,
+  MinimalRequiredUppyFile,
+  UppyFile,
+} from '@uppy/utils'
+export type { DefinePluginOpts, PluginOpts } from './BasePlugin.js'
+export { default as BasePlugin } from './BasePlugin.js'
+export { default as EventManager } from './EventManager.js'
+export { debugLogger } from './loggers.js'
+export type { Restrictions, ValidateableFile } from './Restricter.js'
+export { RestrictionError } from './Restricter.js'
+export type { PluginTarget, UIPluginOptions } from './UIPlugin.js'
+export { default as UIPlugin } from './UIPlugin.js'
+export type {
+  AsyncStore,
   BaseProviderPlugin,
   PartialTree,
   PartialTreeFile,
@@ -8,6 +22,8 @@ export type {
   PartialTreeFolderNode,
   PartialTreeFolderRoot,
   PartialTreeId,
+  PluginTypeRegistry,
+  State,
   UnknownPlugin,
   UnknownProviderPlugin,
   UnknownProviderPluginState,
@@ -16,22 +32,5 @@ export type {
   UploadResult,
   UppyEventMap,
   UppyOptions,
-  AsyncStore,
 } from './Uppy.js'
-
-export { default as UIPlugin } from './UIPlugin.js'
-export type { UIPluginOptions } from './UIPlugin.js'
-
-export { default as BasePlugin } from './BasePlugin.js'
-export type { DefinePluginOpts, PluginOpts } from './BasePlugin.js'
-
-export { debugLogger } from './loggers.js'
-
-export type { Store } from '@uppy/store-default'
-
-export type {
-  UppyFile,
-  MinimalRequiredUppyFile,
-  Meta,
-  Body,
-} from '@uppy/utils/lib/UppyFile'
+export { default, default as Uppy } from './Uppy.js'

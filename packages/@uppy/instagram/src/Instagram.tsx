@@ -1,28 +1,34 @@
 import {
-  Provider,
-  getAllowedHosts,
-  tokenStorage,
   type CompanionPluginOptions,
+  getAllowedHosts,
+  Provider,
+  tokenStorage,
 } from '@uppy/companion-client'
-import { UIPlugin, Uppy } from '@uppy/core'
-import { ProviderViews } from '@uppy/provider-views'
-import { h, type ComponentChild } from 'preact'
-
 import type {
-  UppyFile,
+  AsyncStore,
   Body,
   Meta,
-  AsyncStore,
   UnknownProviderPlugin,
   UnknownProviderPluginState,
+  UppyFile,
 } from '@uppy/core'
+import { UIPlugin, type Uppy } from '@uppy/core'
+import { ProviderViews } from '@uppy/provider-views'
+
+import type { LocaleStrings } from '@uppy/utils'
+// biome-ignore lint/style/useImportType: h is not a type
+import { type ComponentChild, h } from 'preact'
+import packageJson from '../package.json' with { type: 'json' }
 import locale from './locale.js'
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore We don't want TS to generate types for the package.json
-import packageJson from '../package.json'
+
+declare module '@uppy/core' {
+  export interface PluginTypeRegistry<M extends Meta, B extends Body> {
+    Instagram: Instagram<M, B>
+  }
+}
 
 export type InstagramOptions = CompanionPluginOptions & {
-  locale?: typeof locale
+  locale?: LocaleStrings<typeof locale>
 }
 
 export default class Instagram<M extends Meta, B extends Body>

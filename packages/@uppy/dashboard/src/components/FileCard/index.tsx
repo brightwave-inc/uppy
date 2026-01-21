@@ -1,11 +1,10 @@
-import { h } from 'preact'
-import { useEffect, useState, useCallback } from 'preact/hooks'
 import classNames from 'classnames'
 import { nanoid } from 'nanoid/non-secure'
-import getFileTypeIcon from '../../utils/getFileTypeIcon.jsx'
+import { useCallback, useEffect, useRef, useState } from 'preact/hooks'
+import getFileTypeIcon from '../../utils/getFileTypeIcon.js'
 import ignoreEvent from '../../utils/ignoreEvent.js'
-import FilePreview from '../FilePreview.jsx'
-import RenderMetaFields from './RenderMetaFields.jsx'
+import FilePreview from '../FilePreview.js'
+import RenderMetaFields from './RenderMetaFields.js'
 
 type $TSFixMe = any
 
@@ -25,8 +24,8 @@ export default function FileCard(props: $TSFixMe) {
   } = props
 
   const getMetaFields = () => {
-    return typeof metaFields === 'function' ?
-        metaFields(files[fileCardFor])
+    return typeof metaFields === 'function'
+      ? metaFields(files[fileCardFor])
       : metaFields
   }
 
@@ -67,16 +66,43 @@ export default function FileCard(props: $TSFixMe) {
     return formEl
   })
 
+  // We need to know where Uppy is being rendered
+  const domRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
-    document.body.appendChild(form)
+    /**
+     * Use the "rootNode" of whereever Uppy is rendered, falling back
+     * to `window.document` if domRef isn't initialized for some reason
+     */
+    const rootNode = domRef.current?.getRootNode() ?? (document as Node)
+    /**
+     * This is the case for the Light DOM and <iframes>.
+     * In these scenarios, we don't want to append a child to an
+     * <html> element, but to the <body>
+     */
+    if (rootNode instanceof Document) {
+      rootNode.body.appendChild(form)
+    }
+    // This is the case for the Shadow DOM
+    else if (rootNode instanceof ShadowRoot) {
+      rootNode.appendChild(form)
+    }
+    // Everything else (realistically there isn't)
+    else {
+      rootNode.appendChild(form)
+    }
     form.addEventListener('submit', handleSave)
     return () => {
       form.removeEventListener('submit', handleSave)
-      document.body.removeChild(form)
+      // check if form is still in the DOM before removing
+      if (form.parentNode) {
+        form.parentNode.removeChild(form)
+      }
     }
   }, [form, handleSave])
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: ...
     <div
       className={classNames('uppy-Dashboard-FileCard', className)}
       data-uppy-panelType="FileCard"
@@ -84,12 +110,14 @@ export default function FileCard(props: $TSFixMe) {
       onDragLeave={ignoreEvent}
       onDrop={ignoreEvent}
       onPaste={ignoreEvent}
+      ref={domRef}
     >
       <div className="uppy-DashboardContent-bar">
         <div
           className="uppy-DashboardContent-title"
+          // biome-ignore lint/a11y/useSemanticElements: ...
           role="heading"
-          aria-level="1"
+          aria-level={1}
         >
           {i18nArray('editing', {
             file: (

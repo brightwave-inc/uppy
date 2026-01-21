@@ -1,5 +1,4 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-import type { Locale } from '@uppy/utils/lib/Translator'
+import type { Locale } from '@uppy/utils'
 
 const en_US: Locale<0 | 1> = {
   strings: {},
@@ -45,7 +44,6 @@ en_US.strings = {
   browseFolders: 'browse folders',
   cancel: 'Cancel',
   cancelUpload: 'Cancel upload',
-  chooseFiles: 'Choose files',
   closeModal: 'Close Modal',
   companionError: 'Connection with Companion failed',
   companionUnauthorizeHint:
@@ -63,6 +61,7 @@ en_US.strings = {
   dashboardWindowTitle: 'Uppy Dashboard Window (Press escape to close)',
   dataUploadedOfTotal: '%{complete} of %{total}',
   dataUploadedOfUnknown: '%{complete} of unknown',
+  discardMediaFile: 'Discard Media',
   discardRecordedFile: 'Discard recorded file',
   done: 'Done',
   dropHereOr: 'Drop here or %{browse}',
@@ -202,6 +201,7 @@ en_US.strings = {
   submitRecordedFile: 'Submit recorded file',
   takePicture: 'Take a picture',
   takePictureBtn: 'Take Picture',
+  takeScreenshot: 'Take Screenshot',
   unnamed: 'Unnamed',
   upload: 'Upload',
   uploadComplete: 'Upload complete',

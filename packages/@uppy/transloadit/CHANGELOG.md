@@ -1,5 +1,167 @@
 # @uppy/transloadit
 
+## 5.3.0
+
+### Minor Changes
+
+- 79e6460: - Add PluginTypeRegistry and typed getPlugin overload in @uppy/core
+  - Register plugin ids across packages so uppy.getPlugin('Dashboard' | 'Webcam') returns the concrete plugin type and removes the need to pass generics in getPlugin()
+
+### Patch Changes
+
+- Updated dependencies [79e6460]
+- Updated dependencies [ac12f35]
+- Updated dependencies [4817585]
+  - @uppy/core@5.2.0
+  - @uppy/tus@5.1.0
+  - @uppy/utils@7.1.4
+
+## 5.2.0
+
+### Minor Changes
+
+- 72d2d68: Remove unused @uppy/{companion-client,provider-views} dependencies
+
+### Patch Changes
+
+- Updated dependencies [08b64f9]
+  - @uppy/utils@7.1.2
+
+## 5.1.3
+
+### Patch Changes
+
+- 0c16fe4: - **Internal inter-package breaking change:** Remove hacky internal event `restore:get-data` that would send a function as its event data (to golden retriever for it to call the function to receive data from it). Add instead `restore:plugin-data-changed` that publishes data when it changes. This means that **old versions of `@uppy/transloadit` are not compatible with newest version of `@uppy/golden-retriever` (and vice versa)**.
+  - Minor internal refactoring in order to make sure that we will always emit `restore:plugin-data-changed` whenever assembly state changes
+  - Split UppyFile into two intefaces distinguished by the `isRemote` boolean:
+    - LocalUppyFile
+    - RemoteUppyFile
+- Updated dependencies [0c16fe4]
+- Updated dependencies [0c16fe4]
+- Updated dependencies [0c16fe4]
+- Updated dependencies [0c16fe4]
+  - @uppy/companion-client@5.1.1
+  - @uppy/core@5.1.1
+  - @uppy/utils@7.1.1
+  - @uppy/provider-views@5.1.1
+  - @uppy/tus@5.0.2
+
+## 5.1.2
+
+### Patch Changes
+
+- 201c422: Move `transloadit` into `dependencies` so types are resolved without users having to install it manually.
+
+## 5.1.1
+
+### Patch Changes
+
+- bc2d0ed: Ensure final assembly status fetch uses `assembly_ssl_url` so Transloadit requests stay on HTTPS.
+
+## 5.1.0
+
+### Minor Changes
+
+- 6f76412: Use the `transloadit` Node.js SDK's exported Assembly types instead of our inaccurate, hand-rolled ones.
+
+  **Warning**
+
+  The names of our type exports here are unchanged, but they do pack slightly different types. Overall you'll find they are both more complete, but also more loose. Runtime wise there should be no breaking changes, but it could mean you may need a couple of extra guards to make TypeScript happy.
+
+  A cool benefit from the new types tho, is that Robot parameters will now autocomplete for you.
+  More information on these types, and our approach rolling them out, can be found here https://transloadit.com/blog/2025/09/nodejs-sdk-v4/#our-approach-to-type-retrofitting
+
+## 5.0.1
+
+### Patch Changes
+
+- 975317d: Removed "main" from package.json, since export maps serve as the contract for the public API.
+- Updated dependencies [4b6a76c]
+- Updated dependencies [975317d]
+- Updated dependencies [9bac4c8]
+  - @uppy/core@5.0.2
+  - @uppy/companion-client@5.0.1
+  - @uppy/provider-views@5.0.2
+  - @uppy/tus@5.0.1
+  - @uppy/utils@7.0.2
+
+## 5.0.0
+
+### Major Changes
+
+- c5b51f6: ### Export maps for all packages
+
+  All packages now have export maps. This is a breaking change in two cases:
+
+  1. The css imports have changed from `@uppy[package]/dist/styles.min.css` to `@uppy[package]/css/styles.min.css`
+  2. You were importing something that wasn't exported from the root, for instance `@uppy/core/lib/foo.js`. You can now only import things we explicitly exported.
+
+  #### Changed imports for `@uppy/react`, `@uppy/vue`, and `@uppy/svelte`
+
+  Some components, like Dashboard, require a peer dependency to work but since all components were exported from a single file you were forced to install all peer dependencies. Even if you never imported, for instance, the status bar component.
+
+  Every component that requires a peer dependency has now been moved to a subpath, such as `@uppy/react/dashboard`, so you only need to install the peer dependencies you need.
+
+  **Example for `@uppy/react`:**
+
+  **Before:**
+
+  ```javascript
+  import { Dashboard, StatusBar } from "@uppy/react";
+  ```
+
+  **Now:**
+
+  ```javascript
+  import Dashboard from "@uppy/react/dashboard";
+  import StatusBar from "@uppy/react/status-bar";
+  ```
+
+### Patch Changes
+
+- Updated dependencies [d301c01]
+- Updated dependencies [c5b51f6]
+  - @uppy/utils@7.0.0
+  - @uppy/companion-client@5.0.0
+  - @uppy/provider-views@5.0.0
+  - @uppy/core@5.0.0
+  - @uppy/tus@5.0.0
+
+## 4.3.3
+
+### Patch Changes
+
+- ee0b2fc: Add `user_meta` type to `AssemblyResult`
+
+## 4.3.2
+
+### Patch Changes
+
+- 1b1a9e3: Define "files" in package.json
+- Updated dependencies [1b1a9e3]
+- Updated dependencies [c66fd85]
+  - @uppy/companion-client@4.5.2
+  - @uppy/provider-views@4.5.2
+  - @uppy/utils@6.2.2
+  - @uppy/core@4.5.2
+  - @uppy/tus@4.3.2
+
+## 4.3.0
+
+### Minor Changes
+
+- 0c24c5a: Use TypeScript compiler instead of Babel
+
+### Patch Changes
+
+- Updated dependencies [0c24c5a]
+- Updated dependencies [0c24c5a]
+  - @uppy/core@4.5.0
+  - @uppy/companion-client@4.5.0
+  - @uppy/provider-views@4.5.0
+  - @uppy/tus@4.3.0
+  - @uppy/utils@6.2.0
+
 ## 4.2.0
 
 Released: 2025-01-06

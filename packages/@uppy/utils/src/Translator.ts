@@ -10,7 +10,10 @@ export type OptionalPluralizeLocale<T extends number = number> =
   | (Omit<Locale<T>, 'pluralize'> & Partial<Pick<Locale<T>, 'pluralize'>>)
   | undefined
 
-// eslint-disable-next-line no-use-before-define
+export type LocaleStrings<T extends NonNullable<OptionalPluralizeLocale>> = {
+  strings: Partial<T['strings']>
+}
+
 export type I18n = Translator['translate']
 
 type Options = {

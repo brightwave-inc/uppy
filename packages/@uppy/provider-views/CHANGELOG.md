@@ -1,5 +1,160 @@
 # @uppy/provider-views
 
+## 5.2.0
+
+### Minor Changes
+
+- e661348: Allow selecting folders with Google Drive Picker. They will be recursively resolved.
+- 79e6460: - Add PluginTypeRegistry and typed getPlugin overload in @uppy/core
+  - Register plugin ids across packages so uppy.getPlugin('Dashboard' | 'Webcam') returns the concrete plugin type and removes the need to pass generics in getPlugin()
+
+### Patch Changes
+
+- 4817585: added icon to webdav provider, add css to truncate large file names
+- Updated dependencies [79e6460]
+- Updated dependencies [ac12f35]
+- Updated dependencies [4817585]
+  - @uppy/core@5.2.0
+  - @uppy/utils@7.1.4
+
+## 5.1.2
+
+### Patch Changes
+
+- 46e339a: Add missing lodash dependency
+
+## 5.1.1
+
+### Patch Changes
+
+- 0c16fe4: - Rename `getTagFile` to `companionFileToUppyFile`
+- Updated dependencies [0c16fe4]
+  - @uppy/core@5.1.1
+  - @uppy/utils@7.1.1
+
+## 5.1.0
+
+### Minor Changes
+
+- 5ba2c1c: Introduce the concept of server-side search and add support for it for the Dropbox provider. Previously, only client-side filtering in the currently viewed folder was possible, which was limiting. Now users using Companion with Dropbox can perform a search across their entire account.
+
+### Patch Changes
+
+- Updated dependencies [5ba2c1c]
+  - @uppy/utils@7.1.0
+  - @uppy/core@5.1.0
+
+## 5.0.2
+
+### Patch Changes
+
+- 975317d: Removed "main" from package.json, since export maps serve as the contract for the public API.
+- Updated dependencies [4b6a76c]
+- Updated dependencies [975317d]
+- Updated dependencies [9bac4c8]
+  - @uppy/core@5.0.2
+  - @uppy/utils@7.0.2
+
+## 5.0.1
+
+### Patch Changes
+
+- 49522ec: Remove preact/compat imports in favor of preact, preventing JSX type issues in certain setups.
+- Updated dependencies [49522ec]
+  - @uppy/utils@7.0.1
+  - @uppy/core@5.0.1
+
+## 5.0.0
+
+### Major Changes
+
+- c5b51f6: ### Export maps for all packages
+
+  All packages now have export maps. This is a breaking change in two cases:
+
+  1. The css imports have changed from `@uppy[package]/dist/styles.min.css` to `@uppy[package]/css/styles.min.css`
+  2. You were importing something that wasn't exported from the root, for instance `@uppy/core/lib/foo.js`. You can now only import things we explicitly exported.
+
+  #### Changed imports for `@uppy/react`, `@uppy/vue`, and `@uppy/svelte`
+
+  Some components, like Dashboard, require a peer dependency to work but since all components were exported from a single file you were forced to install all peer dependencies. Even if you never imported, for instance, the status bar component.
+
+  Every component that requires a peer dependency has now been moved to a subpath, such as `@uppy/react/dashboard`, so you only need to install the peer dependencies you need.
+
+  **Example for `@uppy/react`:**
+
+  **Before:**
+
+  ```javascript
+  import { Dashboard, StatusBar } from "@uppy/react";
+  ```
+
+  **Now:**
+
+  ```javascript
+  import Dashboard from "@uppy/react/dashboard";
+  import StatusBar from "@uppy/react/status-bar";
+  ```
+
+### Patch Changes
+
+- Updated dependencies [d301c01]
+- Updated dependencies [c5b51f6]
+  - @uppy/utils@7.0.0
+  - @uppy/core@5.0.0
+
+## 4.5.3
+
+### Patch Changes
+
+- 2f62f40: VirtualList now virtualises rows in the file list, as was intented. This means better performance when scrolling thousands for files.
+- Updated dependencies [eee05db]
+  - @uppy/core@4.5.3
+
+## 4.5.2
+
+### Patch Changes
+
+- 1b1a9e3: Define "files" in package.json
+- c66fd85: Fix package.json import
+- Updated dependencies [1b1a9e3]
+  - @uppy/utils@6.2.2
+  - @uppy/core@4.5.2
+
+## 4.5.0
+
+### Minor Changes
+
+- 0c24c5a: Use TypeScript compiler instead of Babel
+
+### Patch Changes
+
+- Updated dependencies [0c24c5a]
+- Updated dependencies [0c24c5a]
+  - @uppy/core@4.5.0
+  - @uppy/utils@6.2.0
+
+## 4.4.5
+
+Released: 2025-06-30
+Included in: Uppy v4.18.0
+
+- @uppy/provider-views: improve metadata handling in Google Photos Picker (ben rosenbaum / #5769)
+
+## 4.4.4
+
+Released: 2025-06-02
+Included in: Uppy v4.17.0
+
+- @uppy/provider-views: fix: handle pagination for Google Photos picker (fixes #5765) (ben rosenbaum / #5768)
+
+## 4.4.3
+
+Released: 2025-04-14
+Included in: Uppy v4.15.0
+
+- @uppy/provider-views: Fix google photos picker (Mikael Finstad / #5717)
+
 ## 4.4.2
 
 Released: 2025-02-03
@@ -169,7 +324,7 @@ Included in: Uppy v3.13.0
 
 - @uppy/provider-views: Add VirtualList to ProviderView (Merlijn Vos / #4566)
 - @uppy/provider-views: fix race conditions with folder loading (Mikael Finstad / #4578)
-- @uppy/provider-views: fix infinite folder loading  (Mikael Finstad / #4590)
+- @uppy/provider-views: fix infinite folder loading (Mikael Finstad / #4590)
 
 ## 3.4.0
 
@@ -259,6 +414,7 @@ Included in: Uppy v2.5.0
 
 - @uppy/companion-client,@uppy/companion,@uppy/provider-views,@uppy/robodog: Finishing touches on Companion dynamic Oauth (Renée Kooi / #2802)
 - @uppy/provider-views: Unsplash: UI improvements (Artur Paikin / #3438)
+
 ## 3.0.0
 
 Released: 2022-08-22

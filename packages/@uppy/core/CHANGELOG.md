@@ -1,5 +1,152 @@
 # @uppy/core
 
+## 5.2.0
+
+### Minor Changes
+
+- 79e6460: - Add PluginTypeRegistry and typed getPlugin overload in @uppy/core
+  - Register plugin ids across packages so uppy.getPlugin('Dashboard' | 'Webcam') returns the concrete plugin type and removes the need to pass generics in getPlugin()
+
+### Patch Changes
+
+- ac12f35: Fix: Move completed uploads exclusion logic into uploaders. This fixes the problem where postprocessors would not run for already uploaded files.
+- 4817585: added icon to webdav provider, add css to truncate large file names
+- Updated dependencies [ac12f35]
+  - @uppy/utils@7.1.4
+
+## 5.1.1
+
+### Patch Changes
+
+- 0c16fe4: - Make `file.data` nullable - Because for ghosts it will be `undefined` and we don't have any type to distinguish ghosts from other (local) files. This caused a crash, because we didn't check for `undefined` everywhere (when trying to store a blob that was `undefined`)
+  - Introduce new field `progress`.`complete`: if there is a post-processing step, set it to `true` once post processing is complete. If not, set it to `true` once upload has finished.
+  - Throw a proper `Nonexistent upload` error message if trying to upload a non-existent upload, instead of TypeError
+  - Rewrite `Uppy.upload()` - this fixes two bugs:
+    1. No more duplicate emit call when this.#restricter.validateMinNumberOfFiles throws (`#informAndEmit` and `this.emit('error')`)
+    2. 'restriction-failed' now also gets correctly called when `checkRequiredMetaFields` check errors.
+  - Don't re-upload completed files #5930
+  - Split UppyFile into two intefaces distinguished by the `isRemote` boolean:
+    - LocalUppyFile
+    - RemoteUppyFile
+  - Remove TagFile type - Use UppyFile instead.
+  - Make `name` required on UppyFile (it is in reality always set)
+  - Fix bug: `RestrictionError` sometimes thrown with a `file` property that was _not_ a `UppyFile`, but a `File`. This would happen if someone passed a `File` instead of a `MinimalRequiredUppyFile` into `core.addFile` (which is valid to do according to our API)
+  - Improve some log messages
+  - Simplify Uppy `postprocess-complete` handler
+- Updated dependencies [0c16fe4]
+  - @uppy/utils@7.1.1
+
+## 5.1.0
+
+### Minor Changes
+
+- 5ba2c1c: Introduce the concept of server-side search and add support for it for the Dropbox provider. Previously, only client-side filtering in the currently viewed folder was possible, which was limiting. Now users using Companion with Dropbox can perform a search across their entire account.
+
+### Patch Changes
+
+- Updated dependencies [5ba2c1c]
+  - @uppy/utils@7.1.0
+
+## 5.0.2
+
+### Patch Changes
+
+- 4b6a76c: added missing exports.
+- 975317d: Removed "main" from package.json, since export maps serve as the contract for the public API.
+- Updated dependencies [975317d]
+- Updated dependencies [9bac4c8]
+  - @uppy/utils@7.0.2
+
+## 5.0.1
+
+### Patch Changes
+
+- 49522ec: Remove preact/compat imports in favor of preact, preventing JSX type issues in certain setups.
+- Updated dependencies [49522ec]
+  - @uppy/utils@7.0.1
+
+## 5.0.0
+
+### Major Changes
+
+- c5b51f6: ### Export maps for all packages
+
+  All packages now have export maps. This is a breaking change in two cases:
+
+  1. The css imports have changed from `@uppy[package]/dist/styles.min.css` to `@uppy[package]/css/styles.min.css`
+  2. You were importing something that wasn't exported from the root, for instance `@uppy/core/lib/foo.js`. You can now only import things we explicitly exported.
+
+  #### Changed imports for `@uppy/react`, `@uppy/vue`, and `@uppy/svelte`
+
+  Some components, like Dashboard, require a peer dependency to work but since all components were exported from a single file you were forced to install all peer dependencies. Even if you never imported, for instance, the status bar component.
+
+  Every component that requires a peer dependency has now been moved to a subpath, such as `@uppy/react/dashboard`, so you only need to install the peer dependencies you need.
+
+  **Example for `@uppy/react`:**
+
+  **Before:**
+
+  ```javascript
+  import { Dashboard, StatusBar } from "@uppy/react";
+  ```
+
+  **Now:**
+
+  ```javascript
+  import Dashboard from "@uppy/react/dashboard";
+  import StatusBar from "@uppy/react/status-bar";
+  ```
+
+### Patch Changes
+
+- Updated dependencies [d301c01]
+- Updated dependencies [c5b51f6]
+  - @uppy/utils@7.0.0
+  - @uppy/store-default@5.0.0
+
+## 4.5.3
+
+### Patch Changes
+
+- eee05db: Fix retry after setting missed metaFields requiring you to click "retry" and then "upload" again. Now "retry" immediately restarts the upload.
+
+## 4.5.2
+
+### Patch Changes
+
+- 1b1a9e3: Define "files" in package.json
+- Updated dependencies [1b1a9e3]
+  - @uppy/store-default@4.3.2
+  - @uppy/utils@6.2.2
+
+## 4.5.0
+
+### Minor Changes
+
+- 0c24c5a: Use TypeScript compiler instead of Babel
+
+### Patch Changes
+
+- 0c24c5a: Resolve stale state in `checkAndUpdateFileState`
+- Updated dependencies [0c24c5a]
+  - @uppy/store-default@4.3.0
+  - @uppy/utils@6.2.0
+
+## 4.4.6
+
+Released: 2025-06-02
+Included in: Uppy v4.17.0
+
+- @uppy/core: fix missing required meta field error not updating (Prakash / #5766)
+
+## 4.4.5
+
+Released: 2025-05-18
+Included in: Uppy v4.16.0
+
+- @uppy/core: fix undefined reference when cancelling an upload (Prakash / #5730)
+- @uppy/audio,@uppy/box,@uppy/core,@uppy/dashboard,@uppy/drag-drop,@uppy/dropbox,@uppy/facebook,@uppy/file-input,@uppy/google-drive-picker,@uppy/google-drive,@uppy/google-photos-picker,@uppy/image-editor,@uppy/instagram,@uppy/onedrive,@uppy/remote-sources,@uppy/screen-capture,@uppy/unsplash,@uppy/url,@uppy/utils,@uppy/webcam,@uppy/webdav,@uppy/zoom: ts: make locale strings optional (Merlijn Vos / #5728)
+
 ## 4.4.4
 
 Released: 2025-04-08

@@ -1,5 +1,103 @@
 # @uppy/companion
 
+## 6.2.1
+
+### Patch Changes
+
+- 4817585: added icon to webdav provider, add css to truncate large file names
+
+## 6.2.0
+
+### Minor Changes
+
+- 0c8dd19: New Companion option `uploadHeaders` which can be used to include a static set of headers with every request sent to all upload destinations.
+
+## 6.1.1
+
+### Patch Changes
+
+- 6a60ee5: Reject request early instead of crashing on missing `filename` for /s3/multipart and /s3/params endpoints
+
+## 6.1.0
+
+### Minor Changes
+
+- 5ba2c1c: Introduce the concept of server-side search and add support for it for the Dropbox provider. Previously, only client-side filtering in the currently viewed folder was possible, which was limiting. Now users using Companion with Dropbox can perform a search across their entire account.
+
+## 6.0.2
+
+### Patch Changes
+
+- 7e5acf1: fix the server crashing due a malformed json in a websocket message
+- 975317d: Removed "main" from package.json, since export maps serve as the contract for the public API.
+
+## 6.0.1
+
+### Patch Changes
+
+- 49522ec: Remove preact/compat imports in favor of preact, preventing JSX type issues in certain setups.
+
+## 6.0.0
+
+### Major Changes
+
+- c5b51f6: ### Export maps for all packages
+
+  All packages now have export maps. This is a breaking change in two cases:
+
+  1. The css imports have changed from `@uppy[package]/dist/styles.min.css` to `@uppy[package]/css/styles.min.css`
+  2. You were importing something that wasn't exported from the root, for instance `@uppy/core/lib/foo.js`. You can now only import things we explicitly exported.
+
+  #### Changed imports for `@uppy/react`, `@uppy/vue`, and `@uppy/svelte`
+
+  Some components, like Dashboard, require a peer dependency to work but since all components were exported from a single file you were forced to install all peer dependencies. Even if you never imported, for instance, the status bar component.
+
+  Every component that requires a peer dependency has now been moved to a subpath, such as `@uppy/react/dashboard`, so you only need to install the peer dependencies you need.
+
+  **Example for `@uppy/react`:**
+
+  **Before:**
+
+  ```javascript
+  import { Dashboard, StatusBar } from "@uppy/react";
+  ```
+
+  **Now:**
+
+  ```javascript
+  import Dashboard from "@uppy/react/dashboard";
+  import StatusBar from "@uppy/react/status-bar";
+  ```
+
+- acdc683: Make Companion ESM-only. As of Node.js 20.19.0, you can require(esm) if you haven't transitioned yet.
+
+## 5.9.0
+
+### Minor Changes
+
+- 0c24c5a: Add provider name to metadata for observability
+
+### Patch Changes
+
+- 0c24c5a: Make StreamableBlob spec compliant for Node.js 24+
+
+## 5.8.0
+
+Released: 2025-06-02
+Included in: Uppy v4.17.0
+
+- @uppy/companion: add max filename length env var (Freeman / #5763)
+- @uppy/companion: fix cookie maxAge to milliseconds (zolotarov@brights.io / #5746)
+- @uppy/companion: improve Zoom folder structure (Merlijn Vos / #5739)
+
+## 5.7.0
+
+Released: 2025-05-18
+Included in: Uppy v4.16.0
+
+- @uppy/companion: implement credentials param `transloadit_gateway` (Mikael Finstad / #5725)
+- @uppy/companion: Fix AES key wear-out (Florian Maury / #5724)
+
 ## 5.6.0
 
 Released: 2025-04-08
@@ -13,7 +111,7 @@ Released: 2025-02-25
 Included in: Uppy v4.13.3
 
 - @uppy/companion: log when tus uploaded size differs (Mikael Finstad / #5647)
-- @uppy/companion: remove redundant HEAD request for file size  (Mikael Finstad / #5648)
+- @uppy/companion: remove redundant HEAD request for file size (Mikael Finstad / #5648)
 
 ## 5.5.1
 
@@ -63,7 +161,7 @@ Included in: Uppy v4.7.0
 Released: 2024-10-31
 Included in: Uppy v4.6.0
 
-- docs,@uppy/companion: disallow corsOrigins "*" (Mikael Finstad / #5496)
+- docs,@uppy/companion: disallow corsOrigins "\*" (Mikael Finstad / #5496)
 
 ## 5.1.2
 
@@ -220,7 +318,7 @@ Released: 2024-06-18
 Included in: Uppy v3.27.0
 
 - @uppy/google-photos: add plugin (Mikael Finstad / #5061)
-- @uppy/companion: Bump ws from 8.8.1 to 8.17.1 (#5256) 
+- @uppy/companion: Bump ws from 8.8.1 to 8.17.1 (#5256)
 
 ## 4.13.3
 
@@ -267,9 +365,9 @@ Released: 2023-12-12
 Included in: Uppy v3.21.0
 
 - @uppy/companion: fix double tus uploads (Mikael Finstad / #4816)
-- @uppy/companion: fix accelerated endpoints for presigned POST  (Mikael Finstad / #4817)
+- @uppy/companion: fix accelerated endpoints for presigned POST (Mikael Finstad / #4817)
 - @uppy/companion: fix `authProvider` property inconsistency (Mikael Finstad / #4672)
-- @uppy/companion:  send certain onedrive errors to the user (Mikael Finstad / #4671)
+- @uppy/companion: send certain onedrive errors to the user (Mikael Finstad / #4671)
 - @uppy/companion: Provider user sessions (Mikael Finstad / #4619)
 
 ## 4.11.0
@@ -367,7 +465,7 @@ Included in: Uppy v3.11.0
 Released: 2023-06-19
 Included in: Uppy v3.10.0
 
-- @uppy/companion: switch from aws-sdk v2 to @aws-sdk/* (v3) (Scott Bessler / #4285)
+- @uppy/companion: switch from aws-sdk v2 to @aws-sdk/\* (v3) (Scott Bessler / #4285)
 - @uppy/companion,@uppy/core,@uppy/dashboard,@uppy/golden-retriever,@uppy/status-bar,@uppy/utils: Migrate all lodash' per-method-packages usage to lodash. (LinusMain / #4274)
 - @uppy/companion: revert randomness from file names (Mikael Finstad / #4509)
 - @uppy/companion: Custom provider fixes (Mikael Finstad / #4498)

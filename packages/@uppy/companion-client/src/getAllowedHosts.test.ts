@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import getAllowedHosts, { isOriginAllowed } from './getAllowedHosts.js'
 
 describe('getAllowedHosts', () => {
@@ -36,13 +36,14 @@ describe('isOriginAllowed', () => {
     expect(isOriginAllowed('a', [/^.+$/])).toBeTruthy()
     expect(isOriginAllowed('a', ['^.+$'])).toBeTruthy()
     expect(
-      isOriginAllowed('www.transloadit.com', ['www\\.transloadit\\.com']),
+      isOriginAllowed('www.transloadit.com', ['^www\\.transloadit\\.com$']),
     ).toBeTruthy()
     expect(
-      isOriginAllowed('www.transloadit.com', ['transloadit\\.com']),
+      isOriginAllowed('www.transloadit.com', ['^transloadit\\.com$']),
     ).toBeFalsy()
     expect(isOriginAllowed('match', ['fail', 'match'])).toBeTruthy()
-    // todo maybe next major:
-    // expect(isOriginAllowed('www.transloadit.com', ['\\.transloadit\\.com$'])).toBeTruthy()
+    expect(
+      isOriginAllowed('www.transloadit.com', ['\\.transloadit\\.com$']),
+    ).toBeTruthy()
   })
 })

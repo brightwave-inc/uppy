@@ -1,29 +1,28 @@
 import {
-  getAllowedHosts,
-  tokenStorage,
   type CompanionPluginOptions,
+  getAllowedHosts,
   SearchProvider,
+  tokenStorage,
 } from '@uppy/companion-client'
-import { UIPlugin, Uppy } from '@uppy/core'
-import { SearchProviderViews } from '@uppy/provider-views'
-import { h, type ComponentChild } from 'preact'
-
 import type {
-  UppyFile,
+  AsyncStore,
   Body,
   Meta,
-  AsyncStore,
   UnknownSearchProviderPlugin,
   UnknownSearchProviderPluginState,
+  UppyFile,
 } from '@uppy/core'
+import { UIPlugin, type Uppy } from '@uppy/core'
+import { SearchProviderViews } from '@uppy/provider-views'
+import type { LocaleStrings } from '@uppy/utils'
+// biome-ignore lint/style/useImportType: h is not a type
+import { type ComponentChild, h } from 'preact'
+import packageJson from '../package.json' with { type: 'json' }
 import locale from './locale.js'
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore We don't want TS to generate types for the package.json
-import packageJson from '../package.json'
 
 export type UnsplashOptions = {
   utmSource?: string
-  locale?: typeof locale
+  locale?: LocaleStrings<typeof locale>
 } & CompanionPluginOptions
 
 export default class Unsplash<M extends Meta, B extends Body>
@@ -111,5 +110,11 @@ export default class Unsplash<M extends Meta, B extends Body>
 
   uninstall(): void {
     this.unmount()
+  }
+}
+
+declare module '@uppy/core' {
+  export interface PluginTypeRegistry<M extends Meta, B extends Body> {
+    Unsplash: Unsplash<M, B>
   }
 }

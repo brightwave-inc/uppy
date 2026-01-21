@@ -1,37 +1,37 @@
-import { BasePlugin } from '@uppy/core'
+import type { RequestClient } from '@uppy/companion-client'
 import type {
+  Body,
+  DefinePluginOpts,
+  Meta,
+  PluginOpts,
   State,
   Uppy,
-  DefinePluginOpts,
-  PluginOpts,
-  Meta,
-  Body,
   UppyFile,
 } from '@uppy/core'
-import type { RequestClient } from '@uppy/companion-client'
-import EventManager from '@uppy/core/lib/EventManager.js'
+import { BasePlugin, EventManager } from '@uppy/core'
 import {
-  RateLimitedQueue,
-  internalRateLimitedQueue,
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore untyped
-} from '@uppy/utils/lib/RateLimitedQueue'
-import NetworkError from '@uppy/utils/lib/NetworkError'
-import isNetworkError from '@uppy/utils/lib/isNetworkError'
-import { fetcher, type FetcherOptions } from '@uppy/utils/lib/fetcher'
-import {
-  filterNonFailedFiles,
+  type FetcherOptions,
+  fetcher,
   filterFilesToEmitUploadStarted,
-} from '@uppy/utils/lib/fileFilters'
-import getAllowedMetaFields from '@uppy/utils/lib/getAllowedMetaFields'
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore We don't want TS to generate types for the package.json
-import packageJson from '../package.json'
+  filterFilesToUpload,
+  getAllowedMetaFields,
+  internalRateLimitedQueue,
+  isNetworkError,
+  type LocalUppyFile,
+  NetworkError,
+  RateLimitedQueue,
+  type RemoteUppyFile,
+} from '@uppy/utils'
+import packageJson from '../package.json' with { type: 'json' }
 import locale from './locale.js'
 
 export interface XhrUploadOpts<M extends Meta, B extends Body>
   extends PluginOpts {
-  endpoint: string
+  endpoint:
+    | string
+    | ((
+        fileOrBundle: UppyFile<M, B> | UppyFile<M, B>[],
+      ) => string | Promise<string>)
   method?:
     | 'GET'
     | 'HEAD'
@@ -71,17 +71,24 @@ export interface XhrUploadOpts<M extends Meta, B extends Body>
 
 export type { XhrUploadOpts as XHRUploadOptions }
 
-declare module '@uppy/utils/lib/UppyFile' {
-  // eslint-disable-next-line no-shadow
-  export interface UppyFile<M extends Meta, B extends Body> {
+declare module '@uppy/utils' {
+  export interface LocalUppyFile<M extends Meta, B extends Body> {
+    xhrUpload?: XhrUploadOpts<M, B>
+  }
+  export interface RemoteUppyFile<M extends Meta, B extends Body> {
     xhrUpload?: XhrUploadOpts<M, B>
   }
 }
 
 declare module '@uppy/core' {
-  // eslint-disable-next-line no-shadow
   export interface State<M extends Meta, B extends Body> {
     xhrUpload?: XhrUploadOpts<M, B>
+  }
+}
+
+declare module '@uppy/core' {
+  export interface PluginTypeRegistry<M extends Meta, B extends Body> {
+    XHRUpload: XHRUpload<M, B>
   }
 }
 
@@ -115,8 +122,14 @@ function buildResponseError(
  * because we might have detected a more accurate file type in Uppy
  * https://stackoverflow.com/a/50875615
  */
-function setTypeInBlob<M extends Meta, B extends Body>(file: UppyFile<M, B>) {
-  const dataWithUpdatedType = file.data.slice(0, file.data.size, file.meta.type)
+function setTypeInBlob<M extends Meta, B extends Body>(
+  file: LocalUppyFile<M, B>,
+) {
+  const dataWithUpdatedType = file.data!.slice(
+    0,
+    file.data!.size,
+    file.meta.type,
+  )
   return dataWithUpdatedType
 }
 
@@ -146,7 +159,6 @@ export default class XHRUpload<
   M extends Meta,
   B extends Body,
 > extends BasePlugin<Opts<M, B>, M, B> {
-  // eslint-disable-next-line global-require
   static VERSION = packageJson.version
 
   #getFetcher
@@ -170,7 +182,6 @@ export default class XHRUpload<
 
     // Simultaneous upload limiting is shared across all uploads with this plugin.
     if (internalRateLimitedQueue in this.opts) {
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore untyped internal
       this.requests = this.opts[internalRateLimitedQueue]
     } else {
@@ -313,7 +324,6 @@ export default class XHRUpload<
     return opts
   }
 
-  // eslint-disable-next-line class-methods-use-this
   addMetadata(
     formData: FormData,
     meta: State<M, B>['meta'],
@@ -333,7 +343,7 @@ export default class XHRUpload<
     })
   }
 
-  createFormDataUpload(file: UppyFile<M, B>, opts: Opts<M, B>): FormData {
+  createFormDataUpload(file: LocalUppyFile<M, B>, opts: Opts<M, B>): FormData {
     const formPost = new FormData()
 
     this.addMetadata(formPost, file.meta, opts)
@@ -349,7 +359,10 @@ export default class XHRUpload<
     return formPost
   }
 
-  createBundledUpload(files: UppyFile<M, B>[], opts: Opts<M, B>): FormData {
+  createBundledUpload(
+    files: LocalUppyFile<M, B>[],
+    opts: Opts<M, B>,
+  ): FormData {
     const formPost = new FormData()
 
     const { meta } = this.uppy.getState()
@@ -370,15 +383,20 @@ export default class XHRUpload<
     return formPost
   }
 
-  async #uploadLocalFile(file: UppyFile<M, B>) {
+  async #uploadLocalFile(file: LocalUppyFile<M, B>) {
     const events = new EventManager(this.uppy)
     const controller = new AbortController()
     const uppyFetch = this.requests.wrapPromiseFunction(async () => {
       const opts = this.getOptions(file)
       const fetch = this.#getFetcher([file])
-      const body =
-        opts.formData ? this.createFormDataUpload(file, opts) : file.data
-      return fetch(opts.endpoint, {
+      const body = opts.formData
+        ? this.createFormDataUpload(file, opts)
+        : file.data
+      const endpoint =
+        typeof opts.endpoint === 'string'
+          ? opts.endpoint
+          : await opts.endpoint(file)
+      return fetch(endpoint, {
         ...opts,
         body,
         signal: controller.signal,
@@ -402,7 +420,7 @@ export default class XHRUpload<
     }
   }
 
-  async #uploadBundle(files: UppyFile<M, B>[]) {
+  async #uploadBundle(files: LocalUppyFile<M, B>[]) {
     const controller = new AbortController()
     const uppyFetch = this.requests.wrapPromiseFunction(async () => {
       const optsFromState = this.uppy.getState().xhrUpload ?? {}
@@ -411,7 +429,11 @@ export default class XHRUpload<
         ...this.opts,
         ...optsFromState,
       })
-      return fetch(this.opts.endpoint, {
+      const endpoint =
+        typeof this.opts.endpoint === 'string'
+          ? this.opts.endpoint
+          : await this.opts.endpoint(files)
+      return fetch(endpoint, {
         // headers can't be a function with bundle: true
         ...(this.opts as OptsWithHeaders<M, B>),
         body,
@@ -439,7 +461,7 @@ export default class XHRUpload<
     }
   }
 
-  #getCompanionClientArgs(file: UppyFile<M, B>) {
+  #getCompanionClientArgs(file: RemoteUppyFile<M, B>) {
     const opts = this.getOptions(file)
     const allowedMetaFields = getAllowedMetaFields(
       opts.allowedMetaFields,
@@ -502,7 +524,6 @@ export default class XHRUpload<
 
     // No limit configured by the user, and no RateLimitedQueue passed in by a "parent" plugin
     // (basically just AwsS3) using the internal symbol
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore untyped internal
     if (this.opts.limit === 0 && !this.opts[internalRateLimitedQueue]) {
       this.uppy.log(
@@ -514,7 +535,7 @@ export default class XHRUpload<
     this.uppy.log('[XHRUpload] Uploading...')
     const files = this.uppy.getFilesByIds(fileIDs)
 
-    const filesFiltered = filterNonFailedFiles(files)
+    const filesFiltered = filterFilesToUpload(files)
     const filesToEmit = filterFilesToEmitUploadStarted(filesFiltered)
     this.uppy.emit('upload-start', filesToEmit)
 
@@ -533,7 +554,7 @@ export default class XHRUpload<
         )
       }
 
-      await this.#uploadBundle(filesFiltered)
+      await this.#uploadBundle(filesFiltered as LocalUppyFile<M, B>[])
     } else {
       await this.#uploadFiles(filesFiltered)
     }

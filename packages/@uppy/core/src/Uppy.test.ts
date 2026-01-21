@@ -1,32 +1,29 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-/* eslint no-console: "off", no-restricted-syntax: "off" */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-
 import assert from 'node:assert'
 import fs from 'node:fs'
 import path from 'node:path'
 import prettierBytes from '@transloadit/prettier-bytes'
 import type { Body, Meta } from '@uppy/core'
-import type { Locale } from '@uppy/utils/lib/Translator'
-import Core from './index.js'
-import UIPlugin from './UIPlugin.js'
+import type { Locale } from '@uppy/utils'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import BasePlugin, {
   type DefinePluginOpts,
   type PluginOpts,
 } from './BasePlugin.js'
+import Core from './index.js'
 import { debugLogger } from './loggers.js'
 import AcquirerPlugin1 from './mocks/acquirerPlugin1.js'
 import AcquirerPlugin2 from './mocks/acquirerPlugin2.js'
+// @ts-expect-error untyped
+import DeepFrozenStore from './mocks/DeepFrozenStore.mjs'
 import InvalidPlugin from './mocks/invalidPlugin.js'
 import InvalidPluginWithoutId from './mocks/invalidPluginWithoutId.js'
 import InvalidPluginWithoutType from './mocks/invalidPluginWithoutType.js'
-// @ts-expect-error trying to import a file from outside the package
-import DeepFrozenStore from '../../../../e2e/cypress/fixtures/DeepFrozenStore.mjs'
+import { RestrictionError } from './Restricter.js'
+import UIPlugin from './UIPlugin.js'
 import type { State } from './Uppy.js'
 
 const sampleImage = fs.readFileSync(
-  // eslint-disable-next-line no-restricted-globals
-  path.join(__dirname, '../../../../e2e/cypress/fixtures/images/image.jpg'),
+  path.join(__dirname, '../../compressor/fixtures/image.jpg'),
 )
 
 // @ts-expect-error type object can be second argument
@@ -816,6 +813,7 @@ describe('src/Core', () => {
       expect(core.getFile(fileId).progress).toEqual({
         percentage: 0,
         bytesUploaded: false,
+        complete: true,
         bytesTotal: 17175,
         uploadComplete: false,
         uploadStarted: null,
@@ -1249,9 +1247,9 @@ describe('src/Core', () => {
         core
           .upload()
           .then((r) =>
-            typeof r!.uploadID === 'string' && r!.uploadID.length === 21 ?
-              { ...r, uploadID: 'cjd09qwxb000dlql4tp4doz8h' }
-            : r,
+            typeof r!.uploadID === 'string' && r!.uploadID.length === 21
+              ? { ...r, uploadID: 'cjd09qwxb000dlql4tp4doz8h' }
+              : r,
           ),
       ).resolves.toMatchSnapshot()
     })
@@ -1286,10 +1284,8 @@ describe('src/Core', () => {
         data: testImage,
       })
       return core.upload().catch((err) => {
-        expect(err).toMatchObject(
-          new Error(
-            'Not starting the upload because onBeforeUpload returned false',
-          ),
+        expect(err.message).toStrictEqual(
+          'Not starting the upload because onBeforeUpload returned false',
         )
       })
     })
@@ -1477,6 +1473,163 @@ describe('src/Core', () => {
       await core.retryAll()
       expect(onUpload).not.toHaveBeenCalled()
     })
+
+    describe('with required metadata', () => {
+      it('should not retry files that have missing required metadata', async () => {
+        const onUpload = vi.fn()
+        const onRetryAll = vi.fn()
+
+        const core = new Core({
+          restrictions: {
+            requiredMetaFields: ['caption'],
+          },
+        })
+        core.on('upload', onUpload)
+        core.on('retry-all', onRetryAll)
+
+        const fileId = core.addFile({
+          source: 'vi',
+          name: 'foo.jpg',
+          type: 'image/jpeg',
+          data: testImage,
+        })
+
+        // Simulate an upload attempt which triggers metadata validation
+        try {
+          await core.upload()
+        } catch (error) {
+          expect(error).toBeInstanceOf(RestrictionError)
+          expect(error.message).toContain('Missing required meta fields')
+        }
+
+        // File should now have missing metadata error after upload attempt
+        const file = core.getFile(fileId)
+        expect(file.missingRequiredMetaFields).toEqual(['caption'])
+        expect(file.error).toContain('Missing required meta fields in foo.jpg')
+
+        // Should not retry files with outstanding metadata issues
+        await core.retryAll()
+        expect(onRetryAll.mock.calls[0][0]).toEqual([])
+        expect(onUpload).toHaveBeenCalledTimes(0)
+      })
+
+      it('should retry files after metadata is corrected', async () => {
+        const onUpload = vi.fn()
+        const onRetryAll = vi.fn()
+
+        const core = new Core({
+          restrictions: {
+            requiredMetaFields: ['caption'],
+          },
+        })
+        core.on('upload', onUpload)
+        core.on('retry-all', onRetryAll)
+
+        const fileId = core.addFile({
+          source: 'vi',
+          name: 'foo.jpg',
+          type: 'image/jpeg',
+          data: testImage,
+        })
+
+        try {
+          await core.upload()
+        } catch (error) {
+          expect(error).toBeInstanceOf(RestrictionError)
+          expect(error.message).toContain('Missing required meta fields')
+        }
+
+        // Verify file has missing metadata error after upload attempt
+        const file = core.getFile(fileId)
+        expect(file.missingRequiredMetaFields).toEqual(['caption'])
+        expect(file.error).toContain('Missing required meta fields in foo.jpg')
+
+        // Fix the metadata
+        core.setFileMeta(fileId, { caption: 'Test caption' })
+
+        // Trigger the dashboard:file-edit-complete event to update validation state
+        // @ts-ignore
+        core.emit('dashboard:file-edit-complete', core.getFile(fileId))
+
+        const updatedFile = core.getFile(fileId)
+        expect(updatedFile.missingRequiredMetaFields).toEqual([])
+
+        // Now retry should work
+        await core.retryAll()
+        expect(onRetryAll.mock.calls[0][0]).toContainEqual(
+          expect.objectContaining({ id: fileId }),
+        )
+        expect(onUpload).toHaveBeenCalledTimes(1) // Called once during retry (initial upload failed at validation)
+      })
+
+      it('should handle multiple files with mixed metadata states', async () => {
+        const onUpload = vi.fn()
+        const onRetryAll = vi.fn()
+
+        const core = new Core({
+          restrictions: {
+            requiredMetaFields: ['caption'],
+          },
+        })
+        core.on('upload', onUpload)
+        core.on('retry-all', onRetryAll)
+
+        // Add files with missing metadata
+        const fileId1 = core.addFile({
+          source: 'vi',
+          name: 'file1.jpg',
+          type: 'image/jpeg',
+          data: testImage,
+        })
+        const _fileId2 = core.addFile({
+          source: 'vi',
+          name: 'file2.jpg',
+          type: 'image/jpeg',
+          data: testImage,
+        })
+        const fileId3 = core.addFile({
+          source: 'vi',
+          name: 'file3.jpg',
+          type: 'image/jpeg',
+          data: testImage,
+        })
+
+        try {
+          await core.upload()
+        } catch (error) {
+          expect(error).toBeInstanceOf(RestrictionError)
+          expect(error.message).toContain('Missing required meta fields')
+        }
+
+        // Give one file a different error (not metadata-related)
+        core.setFileState(fileId3, {
+          error: 'Network error',
+          missingRequiredMetaFields: [],
+        })
+
+        // Fix metadata for first file only
+        core.setFileMeta(fileId1, { caption: 'Fixed caption' })
+        // @ts-ignore
+        core.emit('dashboard:file-edit-complete', core.getFile(fileId1))
+
+        // Add an error to file1 so it can be retried
+        core.setFileState(fileId1, {
+          error: 'Upload failed',
+        })
+
+        // Retry should only include file1 and file3 (file2 still has missing metadata)
+        await core.retryAll()
+
+        const retriedFiles = onRetryAll.mock.calls[0][0]
+        expect(retriedFiles).toContainEqual(
+          expect.objectContaining({ id: fileId1 }),
+        )
+        expect(retriedFiles).toContainEqual(
+          expect.objectContaining({ id: fileId3 }),
+        )
+        expect(onUpload).toHaveBeenCalledTimes(1)
+      })
+    })
   })
 
   describe('restoring a file', () => {
@@ -1618,8 +1771,10 @@ describe('src/Core', () => {
           // @ts-ignore
           data: new File([sampleImage], { type: 'image/png' }),
         })
+        throw new Error('should have thrown')
       } catch (err) {
-        expect(err).toMatchObject(new Error('You can only upload: image/jpeg'))
+        expect(err).toBeInstanceOf(RestrictionError)
+        expect(err.message).toEqual('You can only upload: image/jpeg')
       }
 
       core.setOptions({
@@ -1634,9 +1789,11 @@ describe('src/Core', () => {
           // @ts-ignore
           data: new File([sampleImage], { type: 'image/png' }),
         })
+        throw new Error('should have thrown')
       } catch (err) {
-        expect(err).toMatchObject(
-          new Error('Vous pouvez seulement téléverser: image/jpeg'),
+        expect(err).toBeInstanceOf(RestrictionError)
+        expect(err.message).toEqual(
+          'Vous pouvez seulement téléverser: image/jpeg',
         )
       }
 
@@ -1783,9 +1940,9 @@ describe('src/Core', () => {
 
     it('should work with unsized files', async () => {
       const core = new Core()
-      let proceedUpload
-      let finishUpload
-      const promise = new Promise((resolve) => {
+      let proceedUpload: (value?: unknown) => void
+      let finishUpload: (value?: unknown) => void
+      const progressPromise = new Promise((resolve) => {
         proceedUpload = resolve
       })
       const finishPromise = new Promise((resolve) => {
@@ -1793,7 +1950,7 @@ describe('src/Core', () => {
       })
       core.addUploader(async ([id]) => {
         core.emit('upload-start', [core.getFile(id)])
-        await promise
+        await progressPromise
         // @ts-ignore deprecated
         core.emit('upload-progress', core.getFile(id), {
           bytesTotal: 3456,
@@ -1815,10 +1972,11 @@ describe('src/Core', () => {
       // @ts-ignore
       core[Symbol.for('uppy test: updateTotalProgress')]()
 
+      const uploadStartedPromise = new Promise((resolve) =>
+        core.once('upload-start', resolve),
+      )
       const uploadPromise = core.upload()
-      await Promise.all([
-        new Promise((resolve) => core.once('upload-start', resolve)),
-      ])
+      await uploadStartedPromise
 
       expect(core.getFiles()[0].size).toBeNull()
       expect(core.getFiles()[0].progress).toMatchObject({
@@ -1830,7 +1988,7 @@ describe('src/Core', () => {
       // @ts-ignore
       proceedUpload()
       // wait for progress event
-      await promise
+      await progressPromise
 
       expect(core.getFiles()[0].size).toBeNull()
       expect(core.getFiles()[0].progress).toMatchObject({
@@ -2073,7 +2231,8 @@ describe('src/Core', () => {
         })
         throw new Error('should have thrown')
       } catch (err) {
-        expect(err).toMatchObject(new Error('You can only upload 1 file'))
+        expect(err).toBeInstanceOf(RestrictionError)
+        expect(err.message).toStrictEqual('You can only upload 1 file')
         expect(core.getState().info[0].message).toEqual(
           'You can only upload 1 file',
         )
@@ -2125,27 +2284,12 @@ describe('src/Core', () => {
         })
         throw new Error('should have thrown')
       } catch (err) {
-        expect(err).toMatchObject(
-          new Error('You can only upload: image/gif, image/png'),
+        expect(err).toBeInstanceOf(RestrictionError)
+        expect(err.message).toStrictEqual(
+          'You can only upload: image/gif, image/png',
         )
         expect(core.getState().info[0].message).toEqual(
           'You can only upload: image/gif, image/png',
-        )
-      }
-    })
-
-    it('should throw if allowedFileTypes is not an array', () => {
-      try {
-        const core = new Core({
-          restrictions: {
-            // @ts-ignore
-            allowedFileTypes: 'image/gif',
-          },
-        })
-        core.log('hi')
-      } catch (err) {
-        expect(err).toMatchObject(
-          new Error('`restrictions.allowedFileTypes` must be an array'),
         )
       }
     })
@@ -2166,8 +2310,8 @@ describe('src/Core', () => {
         })
         throw new Error('should have thrown')
       } catch (err) {
-        expect(err).toMatchObject(
-          new Error('You can only upload: .gif, .jpg, .jpeg'),
+        expect(err.message).toStrictEqual(
+          'You can only upload: .gif, .jpg, .jpeg',
         )
         expect(core.getState().info[0].message).toEqual(
           'You can only upload: .gif, .jpg, .jpeg',
@@ -2200,8 +2344,8 @@ describe('src/Core', () => {
         })
         throw new Error('should have thrown')
       } catch (err) {
-        expect(err).toMatchObject(
-          new Error('foo.jpg exceeds maximum allowed size of 1.2 KB'),
+        expect(err.message).toStrictEqual(
+          'foo.jpg exceeds maximum allowed size of 1.2 KB',
         )
         expect(core.getState().info[0].message).toEqual(
           'foo.jpg exceeds maximum allowed size of 1.2 KB',
@@ -2225,8 +2369,8 @@ describe('src/Core', () => {
         })
         throw new Error('should have thrown')
       } catch (err) {
-        expect(err).toMatchObject(
-          new Error('This file is smaller than the allowed size of 1 GB'),
+        expect(err.message).toStrictEqual(
+          'This file is smaller than the allowed size of 1 GB',
         )
         expect(core.getState().info[0].message).toEqual(
           'This file is smaller than the allowed size of 1 GB',
@@ -2256,7 +2400,7 @@ describe('src/Core', () => {
           data: testImage,
         })
       }).toThrowError(
-        new Error(
+        new RestrictionError(
           'You selected 34 KB of files, but maximum allowed size is 20 KB',
         ),
       )
@@ -2465,7 +2609,7 @@ describe('src/Core', () => {
       expect(infoVisibleEvent.mock.calls.length).toEqual(1)
     })
 
-    it('should set an info message to be displayed for a period of time before hiding', (done) => {
+    it('should set an info message to be displayed for a period of time before hiding', async () => {
       const infoVisibleEvent = vi.fn()
       const infoHiddenEvent = vi.fn()
       const core = new Core()
@@ -2474,12 +2618,10 @@ describe('src/Core', () => {
 
       core.info('This is the message', 'info', 100)
       expect(infoHiddenEvent.mock.calls.length).toEqual(0)
-      setTimeout(() => {
-        expect(infoHiddenEvent.mock.calls.length).toEqual(1)
-        expect(core.getState().info).toEqual([])
-        // @ts-ignore
-        done()
-      }, 110)
+
+      await new Promise((resolve) => setTimeout(resolve, 110))
+      expect(infoHiddenEvent.mock.calls.length).toEqual(1)
+      expect(core.getState().info).toEqual([])
     })
 
     it('should hide an info message', () => {
@@ -2547,7 +2689,6 @@ describe('src/Core', () => {
         data: testImage,
       })
 
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore accessing private method
       core[Symbol.for('uppy test: createUpload')](
         Object.keys(core.getState().files),

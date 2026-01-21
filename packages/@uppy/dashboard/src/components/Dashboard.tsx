@@ -1,28 +1,27 @@
-/* eslint-disable react/destructuring-assignment, react/jsx-props-no-spreading */
-import { h } from 'preact'
-import classNames from 'classnames'
-import isDragDropSupported from '@uppy/utils/lib/isDragDropSupported'
 import type {
   Body,
   Meta,
-  UppyFile,
   State,
   UIPlugin,
   UIPluginOptions,
   Uppy,
+  UppyFile,
 } from '@uppy/core'
-import type { I18n } from '@uppy/utils/lib/Translator'
-import type Translator from '@uppy/utils/lib/Translator'
-import type { TargetedEvent } from 'preact/compat'
-import FileList from './FileList.jsx'
-import AddFiles from './AddFiles.jsx'
-import AddFilesPanel from './AddFilesPanel.jsx'
-import PickerPanelContent from './PickerPanelContent.jsx'
-import EditorPanel from './EditorPanel.jsx'
-import PanelTopBar from './PickerPanelTopBar.jsx'
-import FileCard from './FileCard/index.jsx'
-import Slide from './Slide.jsx'
-import type { DashboardState, TargetWithRender } from '../Dashboard'
+import type { I18n, Translator } from '@uppy/utils'
+import { isDragDropSupported } from '@uppy/utils'
+import classNames from 'classnames'
+import type { h } from 'preact'
+import type { DashboardState, TargetWithRender } from '../Dashboard.js'
+import AddFiles from './AddFiles.js'
+import AddFilesPanel from './AddFilesPanel.js'
+import EditorPanel from './EditorPanel.js'
+import FileCard from './FileCard/index.js'
+import FileList from './FileList.js'
+import Informer from './Informer/Informer.js'
+import PickerPanelContent from './PickerPanelContent.js'
+import PanelTopBar from './PickerPanelTopBar.js'
+import Slide from './Slide.js'
+import StatusBar from './StatusBar/StatusBar.js'
 
 // http://dev.edenspiekermann.com/2016/02/11/introducing-accessible-modal-dialog
 // https://github.com/ghosh/micromodal
@@ -71,7 +70,9 @@ type DashboardUIProps<M extends Meta, B extends Body> = {
   id: string
   closeModal: () => void
   handleClickOutside: () => void
-  handleInputChange: (event: TargetedEvent<HTMLInputElement, Event>) => void
+  handleInputChange: (
+    event: h.JSX.TargetedEvent<HTMLInputElement, Event>,
+  ) => void
   handlePaste: (event: ClipboardEvent) => void
   inline: boolean
   showPanel: (id: string) => void
@@ -113,13 +114,18 @@ type DashboardUIProps<M extends Meta, B extends Body> = {
   showNativeVideoCameraButton: boolean
   nativeCameraFacingMode: 'user' | 'environment' | ''
   singleFileFullScreen: boolean
-  handleCancelRestore: () => void
   handleRequestThumbnail: (file: UppyFile<M, B>) => void
   handleCancelThumbnail: (file: UppyFile<M, B>) => void
   isDraggingOver: boolean
   handleDragOver: (event: DragEvent) => void
   handleDragLeave: (event: DragEvent) => void
   handleDrop: (event: DragEvent) => void
+  disableInformer: boolean
+  disableStatusBar: boolean
+  hideProgressDetails: boolean
+  hideUploadButton: boolean
+  hideProgressAfterFinish: boolean
+  doneButtonHandler: (() => void) | null
 }
 
 export default function Dashboard<M extends Meta, B extends Body>(
@@ -163,11 +169,11 @@ export default function Dashboard<M extends Meta, B extends Body>(
 
   const showFileList = props.showSelectedFiles && !isNoFiles
 
-  const numberOfFilesForRecovery =
-    props.recoveredState ? Object.keys(props.recoveredState.files).length : null
-  const numberOfGhosts =
-    props.files ?
-      Object.keys(props.files).filter((fileID) => props.files[fileID].isGhost)
+  const numberOfFilesForRecovery = props.recoveredState
+    ? Object.keys(props.recoveredState.files).length
+    : null
+  const numberOfGhosts = props.files
+    ? Object.keys(props.files).filter((fileID) => props.files[fileID].isGhost)
         .length
     : 0
 
@@ -182,6 +188,7 @@ export default function Dashboard<M extends Meta, B extends Body>(
   }
 
   const dashboard = (
+    // biome-ignore lint/a11y/useAriaPropsSupportedByRole: ...
     <div
       className={dashboardClassName}
       data-uppy-theme={props.theme}
@@ -192,9 +199,9 @@ export default function Dashboard<M extends Meta, B extends Body>(
       aria-hidden={props.inline ? 'false' : props.isHidden}
       aria-disabled={props.disabled}
       aria-label={
-        !props.inline ?
-          props.i18n('dashboardWindowTitle')
-        : props.i18n('dashboardTitle')
+        !props.inline
+          ? props.i18n('dashboardWindowTitle')
+          : props.i18n('dashboardTitle')
       }
       onPaste={props.handlePaste}
       onDragOver={props.handleDragOver}
@@ -210,14 +217,13 @@ export default function Dashboard<M extends Meta, B extends Body>(
 
       <div
         className="uppy-Dashboard-inner"
-        aria-modal={!props.inline && 'true'}
         role={props.inline ? undefined : 'dialog'}
         style={{
           width: props.inline && props.width ? props.width : '',
           height: props.inline && props.height ? props.height : '',
         }}
       >
-        {!props.inline ?
+        {!props.inline ? (
           <button
             className="uppy-u-reset uppy-Dashboard-close"
             type="button"
@@ -227,17 +233,16 @@ export default function Dashboard<M extends Meta, B extends Body>(
           >
             <span aria-hidden="true">&times;</span>
           </button>
-        : null}
+        ) : null}
 
         <div className="uppy-Dashboard-innerWrap">
           <div className="uppy-Dashboard-dropFilesHereHint">
             {props.i18n('dropHint')}
           </div>
 
-          {/* eslint-disable-next-line react/jsx-props-no-spreading */}
           {showFileList && <PanelTopBar {...props} />}
 
-          {numberOfFilesForRecovery && (
+          {numberOfFilesForRecovery != null && numberOfFilesForRecovery > 0 && (
             <div className="uppy-Dashboard-serviceMsg">
               <svg
                 className="uppy-Dashboard-serviceMsg-icon"
@@ -265,7 +270,7 @@ export default function Dashboard<M extends Meta, B extends Body>(
             </div>
           )}
 
-          {showFileList ?
+          {showFileList ? (
             <FileList
               id={props.id}
               i18n={props.i18n}
@@ -293,7 +298,8 @@ export default function Dashboard<M extends Meta, B extends Body>(
               containerWidth={props.containerWidth}
               containerHeight={props.containerHeight}
             />
-          : <AddFiles
+          ) : (
+            <AddFiles
               i18n={props.i18n}
               i18nArray={props.i18nArray}
               acquirers={props.acquirers}
@@ -310,37 +316,46 @@ export default function Dashboard<M extends Meta, B extends Body>(
               note={props.note}
               proudlyDisplayPoweredByUppy={props.proudlyDisplayPoweredByUppy}
             />
-          }
+          )}
 
           <Slide>
-            {/* eslint-disable-next-line react/jsx-props-no-spreading */}
-            {props.showAddFilesPanel ?
+            {props.showAddFilesPanel ? (
               <AddFilesPanel key="AddFiles" {...props} isSizeMD={isSizeMD} />
-            : null}
+            ) : null}
           </Slide>
 
           <Slide>
-            {/* eslint-disable-next-line react/jsx-props-no-spreading */}
-            {props.fileCardFor ?
-              <FileCard key="FileCard" {...props} />
-            : null}
+            {props.fileCardFor ? <FileCard key="FileCard" {...props} /> : null}
           </Slide>
 
           <Slide>
-            {/* eslint-disable-next-line react/jsx-props-no-spreading */}
-            {props.activePickerPanel ?
+            {props.activePickerPanel ? (
               <PickerPanelContent key="Picker" {...props} />
-            : null}
+            ) : null}
           </Slide>
 
           <Slide>
-            {/* eslint-disable-next-line react/jsx-props-no-spreading */}
-            {props.showFileEditor ?
+            {props.showFileEditor ? (
               <EditorPanel key="Editor" {...props} />
-            : null}
+            ) : null}
           </Slide>
 
           <div className="uppy-Dashboard-progressindicators">
+            {!props.disableInformer && <Informer uppy={props.uppy} />}
+            {!props.disableStatusBar && (
+              <StatusBar
+                uppy={props.uppy}
+                i18n={props.i18n}
+                hideProgressDetails={props.hideProgressDetails}
+                hideUploadButton={props.hideUploadButton}
+                hideRetryButton={props.hideRetryButton}
+                hidePauseResumeButton={props.hidePauseResumeButton}
+                hideCancelButton={props.hideCancelButton}
+                hideAfterFinish={props.hideProgressAfterFinish}
+                doneButtonHandler={props.doneButtonHandler}
+              />
+            )}
+            {!props.disableInformer && <Informer uppy={props.uppy} />}
             {props.progressindicators.map((target: TargetWithRender) => {
               // TODO
               // Here we're telling typescript all `this.type = 'progressindicator'` plugins inherit from `UIPlugin`

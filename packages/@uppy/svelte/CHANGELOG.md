@@ -1,5 +1,105 @@
 # @uppy/svelte
 
+## 5.1.0
+
+### Minor Changes
+
+- 72d2d68: Add @uppy/{screen-capture,status-bar,webcam} as optional peer dependencies
+
+### Patch Changes
+
+- Updated dependencies [72d2d68]
+- Updated dependencies [26bf726]
+  - @uppy/components@1.1.0
+
+## 5.0.2
+
+### Patch Changes
+
+- da754b7: Fix props reactivity. Now when the value of a prop you pass to a component changes, it is actually picked up.
+- Updated dependencies [34639ba]
+  - @uppy/components@1.0.3
+
+## 5.0.1
+
+### Patch Changes
+
+- 49522ec: Remove preact/compat imports in favor of preact, preventing JSX type issues in certain setups.
+- Updated dependencies [49522ec]
+  - @uppy/components@1.0.1
+  - @uppy/dashboard@5.0.1
+  - @uppy/core@5.0.1
+
+## 5.0.0
+
+### Major Changes
+
+- c5b51f6: ### Export maps for all packages
+
+  All packages now have export maps. This is a breaking change in two cases:
+
+  1. The css imports have changed from `@uppy[package]/dist/styles.min.css` to `@uppy[package]/css/styles.min.css`
+  2. You were importing something that wasn't exported from the root, for instance `@uppy/core/lib/foo.js`. You can now only import things we explicitly exported.
+
+  #### Changed imports for `@uppy/react`, `@uppy/vue`, and `@uppy/svelte`
+
+  Some components, like Dashboard, require a peer dependency to work but since all components were exported from a single file you were forced to install all peer dependencies. Even if you never imported, for instance, the status bar component.
+
+  Every component that requires a peer dependency has now been moved to a subpath, such as `@uppy/react/dashboard`, so you only need to install the peer dependencies you need.
+
+  **Example for `@uppy/react`:**
+
+  **Before:**
+
+  ```javascript
+  import { Dashboard, StatusBar } from "@uppy/react";
+  ```
+
+  **Now:**
+
+  ```javascript
+  import Dashboard from "@uppy/react/dashboard";
+  import StatusBar from "@uppy/react/status-bar";
+  ```
+
+### Patch Changes
+
+- Updated dependencies [e869243]
+- Updated dependencies [c5b51f6]
+  - @uppy/dashboard@5.0.0
+  - @uppy/components@1.0.0
+  - @uppy/core@5.0.0
+
+## 4.6.2
+
+### Patch Changes
+
+- 4aa708a: Fix prop passing and types
+
+## 4.6.0
+
+### Minor Changes
+
+- 0c24c5a: Use TypeScript compiler instead of Babel
+
+### Patch Changes
+
+- Updated dependencies [0c24c5a]
+- Updated dependencies [0c24c5a]
+  - @uppy/core@4.5.0
+  - @uppy/components@0.3.0
+  - @uppy/dashboard@4.4.0
+  - @uppy/drag-drop@4.2.0
+  - @uppy/progress-bar@4.3.0
+  - @uppy/status-bar@4.2.0
+
+## 4.5.0
+
+Released: 2025-06-30
+Included in: Uppy v4.18.0
+
+- @uppy/react,@uppy/svelte,@uppy/vue: Add useDropzone & useFileInput (Merlijn Vos / #5735)
+
 ## 4.2.0
 
 Released: 2025-01-06

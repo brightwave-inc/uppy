@@ -1,17 +1,14 @@
 import type {
-  Uppy,
   Body,
   Meta,
   PluginOpts,
   UnknownProviderPlugin,
+  Uppy,
 } from '@uppy/core'
-import type {
-  RequestOptions,
-  CompanionClientProvider,
-} from '@uppy/utils/lib/CompanionClientProvider'
-import RequestClient, { authErrorStatusCode } from './RequestClient.js'
-import type { CompanionPluginOptions } from './index.js'
+import type { CompanionClientProvider, RequestOptions } from '@uppy/utils'
 import { isOriginAllowed } from './getAllowedHosts.js'
+import type { CompanionPluginOptions } from './index.js'
+import RequestClient, { authErrorStatusCode } from './RequestClient.js'
 
 export interface Opts extends PluginOpts, CompanionPluginOptions {
   pluginId: string
@@ -28,7 +25,6 @@ const getName = (id: string) => {
 }
 
 function getOrigin() {
-  // eslint-disable-next-line no-restricted-globals
   return location.origin
 }
 
@@ -88,9 +84,8 @@ export default class Provider<M extends Meta, B extends Body>
     super.onReceiveResponse(response)
     const plugin = this.#getPlugin()
     const oldAuthenticated = plugin.getPluginState().authenticated
-    const authenticated =
-      oldAuthenticated ?
-        response.status !== authErrorStatusCode
+    const authenticated = oldAuthenticated
+      ? response.status !== authErrorStatusCode
       : response.status < 400
     plugin.setPluginState({ authenticated })
     return response
@@ -133,7 +128,6 @@ export default class Provider<M extends Meta, B extends Body>
     }
   }
 
-  // eslint-disable-next-line class-methods-use-this, @typescript-eslint/no-unused-vars
   authQuery(data: unknown): Record<string, string> {
     return {}
   }
@@ -190,86 +184,84 @@ export default class Provider<M extends Meta, B extends Body>
 
     signal.throwIfAborted()
 
-    return new Promise((resolve, reject) => {
-      const link = this.authUrl({ query: { uppyVersions }, authFormData })
-      const authWindow = window.open(link, '_blank')
+    const link = this.authUrl({ query: { uppyVersions }, authFormData })
+    const authWindow = window.open(link, '_blank')
+    let interval: number | undefined
+    let handleMessage: ((e: MessageEvent<any>) => void) | undefined
 
-      let cleanup: () => void
-
-      const handleToken = (e: MessageEvent<any>) => {
-        if (e.source !== authWindow) {
-          let jsonData = ''
-          try {
-            // TODO improve our uppy logger so that it can take an arbitrary number of arguments,
-            // each either objects, errors or strings,
-            // then we don’t have to manually do these things like json stringify when logging.
-            // the logger should never throw an error.
-            jsonData = JSON.stringify(e.data)
-          } catch (err) {
-            // in case JSON.stringify fails (ignored)
+    try {
+      return await new Promise((resolve, reject) => {
+        handleMessage = (e: MessageEvent<any>) => {
+          if (e.source !== authWindow) {
+            let jsonData = ''
+            try {
+              // TODO improve our uppy logger so that it can take an arbitrary number of arguments,
+              // each either objects, errors or strings,
+              // then we don’t have to manually do these things like json stringify when logging.
+              // the logger should never throw an error.
+              jsonData = JSON.stringify(e.data)
+            } catch (_err) {
+              // in case JSON.stringify fails (ignored)
+            }
+            this.uppy.log(
+              `ignoring event from unknown source ${jsonData}`,
+              'warning',
+            )
+            return
           }
-          this.uppy.log(
-            `ignoring event from unknown source ${jsonData}`,
-            'warning',
-          )
-          return
-        }
 
-        const { companionAllowedHosts } = this.#getPlugin().opts
-        if (!isOriginAllowed(e.origin, companionAllowedHosts)) {
-          this.uppy.log(
-            `rejecting event from ${e.origin} vs allowed pattern ${companionAllowedHosts}`,
-            'warning',
-          )
-          return
-        }
-
-        // Check if it's a string before doing the JSON.parse to maintain support
-        // for older Companion versions that used object references
-        const data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data
-
-        if (data.error) {
-          const { uppy } = this
-          const message = uppy.i18n('authAborted')
-          uppy.info({ message }, 'warning', 5000)
-          reject(new Error('auth aborted'))
-          return
-        }
-
-        if (!data.token) {
-          reject(new Error('did not receive token from auth window'))
-          return
-        }
-
-        cleanup()
-        resolve(this.setAuthToken(data.token))
-      }
-
-      let interval: number | null = null
-
-      cleanup = () => {
-        authWindow?.close()
-        if (interval) {
-          window.clearInterval(interval)
-          interval = null
-        }
-        window.removeEventListener('message', handleToken)
-        signal.removeEventListener('abort', cleanup)
-      }
-
-      if (authWindow) {
-        interval = window.setInterval(() => {
-          if (authWindow.closed) {
-            this.uppy.log('Auth window closed')
-            cleanup()
-            reject(new Error('Auth window was closed by the user'))
+          const { companionAllowedHosts } = this.#getPlugin().opts
+          if (!isOriginAllowed(e.origin, companionAllowedHosts)) {
+            this.uppy.log(
+              `ignoring event from ${e.origin} vs allowed pattern ${companionAllowedHosts}`,
+              'warning',
+            )
+            // We cannot reject here because the page might send events from other origins
+            // before sending the "real" auth completed event.
+            // for example Box has a "Pendo" tool that sends events to the opener
+            // https://github.com/transloadit/uppy/pull/5719
+            return
           }
-        }, 500)
-      }
 
-      signal.addEventListener('abort', cleanup)
-      window.addEventListener('message', handleToken)
-    })
+          // Check if it's a string before doing the JSON.parse to maintain support
+          // for older Companion versions that used object references
+          const data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data
+
+          if (data.error) {
+            const { uppy } = this
+            const message = uppy.i18n('authAborted')
+            uppy.info({ message }, 'warning', 5000)
+            reject(new Error('auth aborted'))
+            return
+          }
+
+          if (!data.token) {
+            reject(new Error('did not receive token from auth window'))
+            return
+          }
+
+          resolve(this.setAuthToken(data.token))
+        }
+
+        // poll for user closure of the window, so we can reject when it happens
+        if (authWindow) {
+          interval = window.setInterval(() => {
+            if (authWindow.closed) {
+              this.uppy.log('Auth window closed', 'warning')
+              reject(new Error('Auth window was closed by the user'))
+            }
+          }, 500)
+        }
+
+        signal.addEventListener('abort', () => reject(new Error('Aborted')))
+        window.addEventListener('message', handleMessage)
+      })
+    } finally {
+      // cleanup:
+      authWindow?.close()
+      window.clearInterval(interval)
+      if (handleMessage) window.removeEventListener('message', handleMessage)
+    }
   }
 
   async login({
@@ -364,6 +356,22 @@ export default class Provider<M extends Meta, B extends Body>
     options: RequestOptions,
   ): Promise<ResBody> {
     return this.get<ResBody>(`${this.id}/list/${directory || ''}`, options)
+  }
+
+  search<ResBody>(
+    text: string,
+    options: RequestOptions & {
+      path?: string | null | undefined
+      cursor?: string | undefined
+    } = {},
+  ): Promise<ResBody> {
+    const qs = new URLSearchParams()
+    qs.set('q', text)
+    if (options.path) qs.set('path', options.path)
+    if (options.cursor) qs.set('cursor', options.cursor)
+    const base = `${this.id}/search`
+    const path = `${base}?${qs.toString()}`
+    return this.get<ResBody>(path, options)
   }
 
   async logout<ResBody>(options?: RequestOptions): Promise<ResBody> {
