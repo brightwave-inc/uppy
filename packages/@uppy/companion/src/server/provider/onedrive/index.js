@@ -43,30 +43,34 @@ export default class OneDrive extends Provider {
     query,
     providerUserSession: { accessToken: token },
   }) {
-    return this.#withErrorHandling('provider.onedrive.list.error', async () => {
-      const path = directory ? `items/${directory}` : 'root'
-      // https://learn.microsoft.com/en-us/graph/query-parameters?tabs=http#top-parameter
-      const pageSize = 999
-      // const pageSize = 20 // to test pagination easily
-      const qs = { $expand: 'thumbnails', $top: pageSize }
-      if (query.cursor) {
-        qs.$skiptoken = query.cursor
-      }
+    return this.#withErrorHandling(
+      'provider.onedrive.list.error',
+      async () => {
+        const path = directory ? `items/${directory}` : 'root'
+        // https://learn.microsoft.com/en-us/graph/query-parameters?tabs=http#top-parameter
+        const pageSize = 999
+        // const pageSize = 20 // to test pagination easily
+        const qs = { $expand: 'thumbnails', $top: pageSize }
+        if (query.cursor) {
+          qs.$skiptoken = query.cursor
+        }
 
-      const client = getClient({ token })
+        const client = getClient({ token })
 
-      const [{ mail, userPrincipalName }, list] = await Promise.all([
-        client.get('me', { responseType: 'json' }).json(),
-        client
-          .get(`${getRootPath(query)}/${path}/children`, {
-            searchParams: qs,
-            responseType: 'json',
-          })
-          .json(),
-      ])
+        const [{ mail, userPrincipalName }, list] = await Promise.all([
+          client.get('me', { responseType: 'json' }).json(),
+          client
+            .get(`${getRootPath(query)}/${path}/children`, {
+              searchParams: qs,
+              responseType: 'json',
+            })
+            .json(),
+        ])
 
-      return adaptData(list, mail || userPrincipalName, query, directory)
-    })
+        return adaptData(list, mail || userPrincipalName, query, directory)
+      },
+      { directory, query, operation: 'list' },
+    )
   }
 
   async download({ id, providerUserSession: { accessToken: token }, query }) {
@@ -80,6 +84,7 @@ export default class OneDrive extends Provider {
         const { size } = await prepareStream(stream)
         return { stream, size }
       },
+      { id, query, operation: 'download' },
     )
   }
 
@@ -93,12 +98,16 @@ export default class OneDrive extends Provider {
   }
 
   async size({ id, query, providerUserSession: { accessToken: token } }) {
-    return this.#withErrorHandling('provider.onedrive.size.error', async () => {
-      const { size } = await getClient({ token })
-        .get(`${getRootPath(query)}/items/${id}`, { responseType: 'json' })
-        .json()
-      return size
-    })
+    return this.#withErrorHandling(
+      'provider.onedrive.size.error',
+      async () => {
+        const { size } = await getClient({ token })
+          .get(`${getRootPath(query)}/items/${id}`, { responseType: 'json' })
+          .json()
+        return size
+      },
+      { id, query, operation: 'size' },
+    )
   }
 
   async logout() {
@@ -127,21 +136,27 @@ export default class OneDrive extends Provider {
           .json()
         return { accessToken }
       },
+      { operation: 'refreshToken' },
     )
   }
 
-  async #withErrorHandling(tag, fn) {
+  async #withErrorHandling(tag, fn, requestContext = {}) {
     return withProviderErrorHandling({
       fn,
       tag,
       providerName: OneDrive.oauthProvider,
+      requestContext,
       isAuthError: (response) => response.statusCode === 401,
-      isUserFacingError: (response) => [400, 403].includes(response.statusCode),
+      isNotFoundError: (response) => response.statusCode === 404,
+      isPermissionError: (response) => response.statusCode === 403,
+      isUserFacingError: (response) =>
+        [400, 403, 404].includes(response.statusCode),
       // onedrive gives some errors here that the user might want to know about
       // e.g. these happen if you try to login to a users in an organization,
       // without an Office365 licence or OneDrive account setup completed
       // 400: Tenant does not have a SPO license
       // 403: You do not have access to create this personal site or you do not have a valid license
+      // 404: Item not found
       getJsonErrorMessage: (body) => body?.error?.message,
     })
   }

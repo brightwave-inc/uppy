@@ -2,6 +2,8 @@ import * as logger from '../logger.js'
 import {
   ProviderApiError,
   ProviderAuthError,
+  ProviderNotFoundError,
+  ProviderPermissionError,
   ProviderUserError,
   parseHttpError,
 } from './error.js'
@@ -14,7 +16,10 @@ export { parseHttpError }
  *   fn: () => any,
  *   tag: string,
  * providerName: string,
+ *   requestContext?: object,
  *   isAuthError?: (a: { statusCode: number, body?: object }) => boolean,
+ * isNotFoundError?: (a: { statusCode: number, body?: object }) => boolean,
+ * isPermissionError?: (a: { statusCode: number, body?: object }) => boolean,
  * isUserFacingError?: (a: { statusCode: number, body?: object }) => boolean,
  *   getJsonErrorMessage: (a: object) => string
  * }} param0
@@ -24,7 +29,10 @@ export async function withProviderErrorHandling({
   fn,
   tag,
   providerName,
+  requestContext = {},
   isAuthError = () => false,
+  isNotFoundError = () => false,
+  isPermissionError = () => false,
   isUserFacingError = () => false,
   getJsonErrorMessage,
 }) {
@@ -50,8 +58,15 @@ export async function withProviderErrorHandling({
     if (httpError) {
       const { statusCode, body } = httpError
       let knownErr
+
       if (isAuthError({ statusCode, body })) {
         knownErr = new ProviderAuthError()
+      } else if (isNotFoundError({ statusCode, body })) {
+        const message = getErrorMessage({ statusCode, body })
+        knownErr = new ProviderNotFoundError(message, statusCode, requestContext)
+      } else if (isPermissionError({ statusCode, body })) {
+        const message = getErrorMessage({ statusCode, body })
+        knownErr = new ProviderPermissionError(message, statusCode, requestContext)
       } else if (isUserFacingError({ statusCode, body })) {
         knownErr = new ProviderUserError({
           message: getErrorMessage({ statusCode, body }),
@@ -63,7 +78,19 @@ export async function withProviderErrorHandling({
         )
       }
 
-      logger.error(knownErr, tag)
+      // Enhanced structured logging with context
+      logger.error(
+        {
+          error: knownErr.message,
+          statusCode,
+          provider: providerName,
+          operation: requestContext.operation,
+          directory: requestContext.directory,
+          itemId: requestContext.id,
+          query: requestContext.query,
+        },
+        tag,
+      )
       throw knownErr
     }
 
