@@ -1,20 +1,23 @@
-import { UIPlugin } from '@uppy/core'
 import type {
-  UIPluginOptions,
-  Uppy,
+  Body,
   DefinePluginOpts,
   Meta,
-  Body,
+  UIPluginOptions,
+  Uppy,
   UppyFile,
 } from '@uppy/core'
+import { UIPlugin } from '@uppy/core'
+import type { LocaleStrings } from '@uppy/utils'
 import type Cropper from 'cropperjs'
-import { h } from 'preact'
-
-import Editor from './Editor.jsx'
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore We don't want TS to generate types for the package.json
-import packageJson from '../package.json'
+import packageJson from '../package.json' with { type: 'json' }
+import Editor from './Editor.js'
 import locale from './locale.js'
+
+declare module '@uppy/core' {
+  export interface PluginTypeRegistry<M extends Meta, B extends Body> {
+    ImageEditor: ImageEditor<M, B>
+  }
+}
 
 declare global {
   namespace preact {
@@ -58,7 +61,7 @@ export interface Opts extends UIPluginOptions {
     cropWidescreen?: boolean
     cropWidescreenVertical?: boolean
   }
-  locale?: typeof locale
+  locale?: LocaleStrings<typeof locale>
 }
 export type { Opts as ImageEditorOptions }
 
@@ -141,7 +144,6 @@ export default class ImageEditor<
     this.i18nInit()
   }
 
-  // eslint-disable-next-line class-methods-use-this
   canEditFile(file: UppyFile<M, B>): boolean {
     if (!file.type || file.isRemote) {
       return false

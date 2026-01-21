@@ -1,0 +1,37 @@
+<div class="app-container">
+  <header class="app-header">
+    <h1>{{ title }}</h1>
+    <!-- <p>Upload images and videos using the Uppy Dashboard modal</p> -->
+  </header>
+
+  <main class="app-main">
+    <!-- Inline Dashboard (always visible) -->
+    <section class="dashboard-section">
+      <h2>📁 File Upload Dashboard</h2>
+      <uppy-dashboard
+        [uppy]="uppy"
+        [props]="dashboardProps"
+      ></uppy-dashboard>
+    </section>
+
+    <!-- Toggle Button for Modal -->
+    <section class="modal-section">
+      <h2>🚀 Modal Dashboard</h2>
+      <p>You can also open the dashboard in a modal overlay:</p>
+
+      <button
+        class="toggle-button"
+        (click)="toggleModal()"
+        [class.active]="showModal">
+        {{ showModal ? '✕ Close Modal Dashboard' : '📤 Open Modal Dashboard' }}
+      </button>
+
+      <!-- Dashboard Modal -->
+      <uppy-dashboard-modal
+        [uppy]="uppy"
+        [open]="showModal"
+        [props]="dashboardModalProps"
+      ></uppy-dashboard-modal>
+    </section>
+  </main>
+</div>

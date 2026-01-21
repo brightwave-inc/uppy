@@ -1,6 +1,6 @@
-const logger = require('./logger')
-const { getProtectedGot } = require('./helpers/request')
-const { prepareStream } = require('./helpers/utils')
+import { getProtectedGot } from './helpers/request.js'
+import { prepareStream } from './helpers/utils.js'
+import logger from './logger.js'
 
 /**
  * Downloads the content in the specified url, and passes the data
@@ -11,18 +11,17 @@ const { prepareStream } = require('./helpers/utils')
  * @param {string} traceId
  * @returns {Promise}
  */
-const downloadURL = async (url, allowLocalIPs, traceId, options) => {
+export const downloadURL = async (url, allowLocalIPs, traceId, options) => {
   try {
-    const protectedGot = await getProtectedGot({ allowLocalIPs })
-    const stream = protectedGot.stream.get(url, { responseType: 'json', ...options })
+    const protectedGot = getProtectedGot({ allowLocalIPs })
+    const stream = protectedGot.stream.get(url, {
+      responseType: 'json',
+      ...options,
+    })
     const { size } = await prepareStream(stream)
     return { stream, size }
   } catch (err) {
     logger.error(err, 'controller.url.download.error', traceId)
     throw err
   }
-}
-
-module.exports = {
-  downloadURL,
 }

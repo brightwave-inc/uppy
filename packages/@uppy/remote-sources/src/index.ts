@@ -1,27 +1,24 @@
-import { BasePlugin } from '@uppy/core'
+import Box from '@uppy/box'
+import type { CompanionPluginOptions } from '@uppy/companion-client'
 import type {
-  Uppy,
-  UnknownProviderPlugin,
-  DefinePluginOpts,
   Body,
+  DefinePluginOpts,
   Meta,
+  UnknownProviderPlugin,
+  Uppy,
 } from '@uppy/core'
+import { BasePlugin } from '@uppy/core'
 import Dropbox from '@uppy/dropbox'
+import Facebook from '@uppy/facebook'
 import GoogleDrive from '@uppy/google-drive'
 import Instagram from '@uppy/instagram'
-import Facebook from '@uppy/facebook'
 import OneDrive from '@uppy/onedrive'
-import Box from '@uppy/box'
 import Unsplash from '@uppy/unsplash'
 import Url from '@uppy/url'
 import Zoom from '@uppy/zoom'
+import packageJson from '../package.json' with { type: 'json' }
 
-import type { CompanionPluginOptions } from '@uppy/companion-client'
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore We don't want TS to generate types for the package.json
-import packageJson from '../package.json'
-
-const availablePlugins = {
+export const availablePlugins = {
   // Using a null-prototype object to avoid prototype pollution.
   __proto__: null,
   Box,
@@ -35,7 +32,7 @@ const availablePlugins = {
   Zoom,
 }
 
-type AvailablePluginsKeys =
+export type AvailablePluginsKeys =
   | 'Box'
   | 'Dropbox'
   | 'Facebook'
@@ -93,7 +90,6 @@ export default class RemoteSources<
 
   install(): void {
     this.opts.sources.forEach((pluginId) => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { sources, ...rest } = this.opts
       const optsForRemoteSourcePlugin: CompanionPluginOptions = {
         ...rest,
@@ -110,7 +106,6 @@ export default class RemoteSources<
           `Invalid plugin: "${pluginId}" is not one of: ${formatter.format(pluginNames)}.`,
         )
       }
-      // @ts-expect-error different locale strings (const type) from all plugins confuse TS here
       this.uppy.use(plugin, optsForRemoteSourcePlugin)
       // `plugin` is a class, but we want to track the instance object
       // so we have to do `getPlugin` here.
@@ -125,5 +120,11 @@ export default class RemoteSources<
       this.uppy.removePlugin(plugin)
     }
     this.#installedPlugins.clear()
+  }
+}
+
+declare module '@uppy/core' {
+  export interface PluginTypeRegistry<M extends Meta, B extends Body> {
+    RemoteSources: RemoteSources<M, B>
   }
 }

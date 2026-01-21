@@ -1,9 +1,8 @@
-/* eslint-disable max-classes-per-file */
 /**
  * ProviderApiError is error returned when an adapter encounters
  * an http error while communication with its corresponding provider
  */
-class ProviderApiError extends Error {
+export class ProviderApiError extends Error {
   /**
    * @param {string} message error message
    * @param {number} statusCode the http status code from the provider api
@@ -16,7 +15,7 @@ class ProviderApiError extends Error {
   }
 }
 
-class ProviderUserError extends ProviderApiError {
+export class ProviderUserError extends ProviderApiError {
   /**
    * @param {object} json arbitrary JSON.stringify-able object that will be passed to the client
    */
@@ -33,7 +32,7 @@ class ProviderUserError extends ProviderApiError {
  * this signals to the client that the access token is invalid and needs to be
  * refreshed or the user needs to re-authenticate
  */
-class ProviderAuthError extends ProviderApiError {
+export class ProviderAuthError extends ProviderApiError {
   constructor() {
     super('invalid access token detected by Provider', 401)
     this.name = 'AuthError'
@@ -41,7 +40,7 @@ class ProviderAuthError extends ProviderApiError {
   }
 }
 
-function parseHttpError(err) {
+export function parseHttpError(err) {
   if (err?.name === 'HTTPError') {
     return {
       statusCode: err.response?.statusCode,
@@ -100,13 +99,16 @@ function errorToResponse(err) {
   const httpError = parseHttpError(err)
   if (httpError) {
     // We proxy the response purely for ease of debugging
-    return { code: 500, json: { statusCode: httpError.statusCode, body: httpError.body } }
+    return {
+      code: 500,
+      json: { statusCode: httpError.statusCode, body: httpError.body },
+    }
   }
 
   return undefined
 }
 
-function respondWithError(err, res) {
+export function respondWithError(err, res) {
   const errResp = errorToResponse(err)
   if (errResp) {
     res.status(errResp.code).json(errResp.json)
@@ -114,5 +116,3 @@ function respondWithError(err, res) {
   }
   return false
 }
-
-module.exports = { ProviderAuthError, ProviderApiError, ProviderUserError, respondWithError, parseHttpError }

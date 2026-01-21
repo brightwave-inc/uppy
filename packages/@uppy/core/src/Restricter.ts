@@ -1,11 +1,8 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-/* eslint-disable max-classes-per-file, class-methods-use-this */
 import prettierBytes from '@transloadit/prettier-bytes'
+import type { Body, I18n, Meta, UppyFile } from '@uppy/utils'
 // @ts-ignore untyped
 import match from 'mime-match'
-import type { Body, Meta, UppyFile } from '@uppy/utils/lib/UppyFile'
-import type { I18n } from '@uppy/utils/lib/Translator'
-import type { State, NonNullableUppyOptions } from './Uppy.js'
+import type { NonNullableUppyOptions, State } from './Uppy.js'
 
 export type Restrictions = {
   maxFileSize: number | null
@@ -22,10 +19,11 @@ export type Restrictions = {
  */
 export type ValidateableFile<M extends Meta, B extends Body> = Pick<
   UppyFile<M, B>,
-  'type' | 'extension' | 'size' | 'name'
+  'type' | 'extension' | 'size'
   // Both UppyFile and CompanionFile need to be passable as a ValidateableFile
   // CompanionFile's do not have `isGhost`, so we mark it optional.
-> & { isGhost?: boolean }
+> &
+  Partial<Pick<UppyFile<M, B>, 'name' | 'isGhost'>>
 
 const defaultOptions = {
   maxFileSize: null,

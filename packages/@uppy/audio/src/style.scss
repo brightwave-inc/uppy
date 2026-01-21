@@ -1,5 +1,7 @@
-@import '@uppy/core/src/_utils.scss';
-@import '@uppy/core/src/_variables.scss';
+// NOTE TO CONSUMERS: The code and variables in these source files are not considered stable and can change at any time, even in minor and patch releases!
+@use "sass:color";
+@use '@uppy/core/src/_utils.scss' as *;
+@use '@uppy/core/src/_variables.scss' as *;
 
 .uppy-Audio-container {
   width: 100%;
@@ -121,7 +123,7 @@
   transition: all 0.3s;
 
   &:hover {
-    background-color: darken($red, 5%);
+    background-color: color.adjust($red, $lightness: -5%);
   }
 
   [data-uppy-theme='dark'] & {
@@ -134,7 +136,7 @@
   margin: 0 12px;
 
   &:hover {
-    background-color: darken($blue, 5%);
+    background-color: color.adjust($blue, $lightness: -5%);
   }
 }
 

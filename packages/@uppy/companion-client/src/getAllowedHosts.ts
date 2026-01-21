@@ -5,8 +5,7 @@ function escapeRegex(string: string) {
 
 function wrapInRegex(value?: string | RegExp): RegExp | undefined {
   if (typeof value === 'string') {
-    // TODO in the next major we should change this to `new RegExp(value)` so that the user can control start/end characters
-    return new RegExp(`^${value}$`) // throws if invalid regex
+    return new RegExp(value) // throws if invalid regex
   }
   if (value instanceof RegExp) {
     return value
@@ -53,9 +52,8 @@ export function isOriginAllowed(
   origin: string,
   allowedOrigin: string | RegExp | Array<string | RegExp> | undefined,
 ): boolean {
-  const patterns =
-    Array.isArray(allowedOrigin) ?
-      allowedOrigin.map(wrapInRegex)
+  const patterns = Array.isArray(allowedOrigin)
+    ? allowedOrigin.map(wrapInRegex)
     : [wrapInRegex(allowedOrigin)]
   return patterns.some(
     (pattern) => pattern?.test(origin) || pattern?.test(`${origin}/`),

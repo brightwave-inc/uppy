@@ -1,5 +1,112 @@
 # @uppy/thumbnail-generator
 
+## 5.1.0
+
+### Minor Changes
+
+- 79e6460: - Add PluginTypeRegistry and typed getPlugin overload in @uppy/core
+  - Register plugin ids across packages so uppy.getPlugin('Dashboard' | 'Webcam') returns the concrete plugin type and removes the need to pass generics in getPlugin()
+
+### Patch Changes
+
+- Updated dependencies [79e6460]
+- Updated dependencies [ac12f35]
+- Updated dependencies [4817585]
+  - @uppy/core@5.2.0
+  - @uppy/utils@7.1.4
+
+## 5.0.2
+
+### Patch Changes
+
+- 0c16fe4: - Make `file.data` nullable - Because for ghosts it will be `undefined` and we don't have any type to distinguish ghosts from other (local) files. This caused a crash, because we didn't check for `undefined` everywhere (when trying to store a blob that was `undefined`). This means we have to add null checks in some packages
+  - Split UppyFile into two intefaces distinguished by the `isRemote` boolean:
+    - LocalUppyFile
+    - RemoteUppyFile
+- Updated dependencies [0c16fe4]
+  - @uppy/core@5.1.1
+  - @uppy/utils@7.1.1
+
+## 5.0.1
+
+### Patch Changes
+
+- 975317d: Removed "main" from package.json, since export maps serve as the contract for the public API.
+- Updated dependencies [4b6a76c]
+- Updated dependencies [975317d]
+- Updated dependencies [9bac4c8]
+  - @uppy/core@5.0.2
+  - @uppy/utils@7.0.2
+
+## 5.0.0
+
+### Major Changes
+
+- c5b51f6: ### Export maps for all packages
+
+  All packages now have export maps. This is a breaking change in two cases:
+
+  1. The css imports have changed from `@uppy[package]/dist/styles.min.css` to `@uppy[package]/css/styles.min.css`
+  2. You were importing something that wasn't exported from the root, for instance `@uppy/core/lib/foo.js`. You can now only import things we explicitly exported.
+
+  #### Changed imports for `@uppy/react`, `@uppy/vue`, and `@uppy/svelte`
+
+  Some components, like Dashboard, require a peer dependency to work but since all components were exported from a single file you were forced to install all peer dependencies. Even if you never imported, for instance, the status bar component.
+
+  Every component that requires a peer dependency has now been moved to a subpath, such as `@uppy/react/dashboard`, so you only need to install the peer dependencies you need.
+
+  **Example for `@uppy/react`:**
+
+  **Before:**
+
+  ```javascript
+  import { Dashboard, StatusBar } from "@uppy/react";
+  ```
+
+  **Now:**
+
+  ```javascript
+  import Dashboard from "@uppy/react/dashboard";
+  import StatusBar from "@uppy/react/status-bar";
+  ```
+
+### Patch Changes
+
+- Updated dependencies [d301c01]
+- Updated dependencies [c5b51f6]
+  - @uppy/utils@7.0.0
+  - @uppy/core@5.0.0
+
+## 4.2.3
+
+### Patch Changes
+
+- 79502f7: Make tiny/small thumbnails look better by not scaling them to cover the entire grid item
+- Updated dependencies [eee05db]
+  - @uppy/core@4.5.3
+
+## 4.2.2
+
+### Patch Changes
+
+- 1b1a9e3: Define "files" in package.json
+- Updated dependencies [1b1a9e3]
+  - @uppy/utils@6.2.2
+  - @uppy/core@4.5.2
+
+## 4.2.0
+
+### Minor Changes
+
+- 0c24c5a: Use TypeScript compiler instead of Babel
+
+### Patch Changes
+
+- Updated dependencies [0c24c5a]
+- Updated dependencies [0c24c5a]
+  - @uppy/core@4.5.0
+  - @uppy/utils@6.2.0
+
 ## 4.1.0
 
 Released: 2025-01-06

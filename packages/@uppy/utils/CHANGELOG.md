@@ -1,5 +1,127 @@
 # @uppy/utils
 
+## 7.1.4
+
+### Patch Changes
+
+- ac12f35: Fix: Move completed uploads exclusion logic into uploaders. This fixes the problem where postprocessors would not run for already uploaded files.
+
+## 7.1.3
+
+### Patch Changes
+
+- ad50314: Allow `getSafeFileId` to accept `UppyFile`
+
+## 7.1.2
+
+### Patch Changes
+
+- 08b64f9: fix ts issue with generateFileID and `exactOptionalPropertyTypes`
+
+## 7.1.1
+
+### Patch Changes
+
+- 0c16fe4: - Make `file.data` nullable - Because for ghosts it will be `undefined` and we don't have any type to distinguish ghosts from other (local) files. This caused a crash, because we didn't check for `undefined` everywhere (when trying to store a blob that was `undefined`)
+  - Introduce new field `progress`.`complete`: if there is a post-processing step, set it to `true` once post processing is complete. If not, set it to `true` once upload has finished.
+  - Throw a proper `Nonexistent upload` error message if trying to upload a non-existent upload, instead of TypeError
+  - Rewrite `Uppy.upload()` - this fixes two bugs:
+    1. No more duplicate emit call when this.#restricter.validateMinNumberOfFiles throws (`#informAndEmit` and `this.emit('error')`)
+    2. 'restriction-failed' now also gets correctly called when `checkRequiredMetaFields` check errors.
+  - Don't re-upload completed files #5930
+  - Split UppyFile into two intefaces distinguished by the `isRemote` boolean:
+    - LocalUppyFile
+    - RemoteUppyFile
+  - Remove TagFile type - Use UppyFile instead.
+  - Make `name` required on UppyFile (it is in reality always set)
+  - Fix bug: `RestrictionError` sometimes thrown with a `file` property that was _not_ a `UppyFile`, but a `File`. This would happen if someone passed a `File` instead of a `MinimalRequiredUppyFile` into `core.addFile` (which is valid to do according to our API)
+  - Improve some log messages
+  - Simplify Uppy `postprocess-complete` handler
+
+## 7.1.0
+
+### Minor Changes
+
+- 5ba2c1c: Introduce the concept of server-side search and add support for it for the Dropbox provider. Previously, only client-side filtering in the currently viewed folder was possible, which was limiting. Now users using Companion with Dropbox can perform a search across their entire account.
+
+## 7.0.2
+
+### Patch Changes
+
+- 975317d: Removed "main" from package.json, since export maps serve as the contract for the public API.
+- 9bac4c8: Fix `TypeError: Cannot use 'in' operator to search for 'draggable' in null`
+
+## 7.0.1
+
+### Patch Changes
+
+- 49522ec: Remove preact/compat imports in favor of preact, preventing JSX type issues in certain setups.
+
+## 7.0.0
+
+### Major Changes
+
+- d301c01: Updated export maps for @uppy/utils: removed nested subpath exports; all utilities are now exported from the root index.js.
+
+  **Before :**
+
+  ```typescript
+  import getFileTypeExtension from "@uppy/utils/lib/getFileTypeExtension";
+  ```
+
+  **After :**
+
+  ```typescript
+  import { getFileTypeExtension } from "@uppy/utils";
+  ```
+
+- c5b51f6: ### Export maps for all packages
+
+  All packages now have export maps. This is a breaking change in two cases:
+
+  1. The css imports have changed from `@uppy[package]/dist/styles.min.css` to `@uppy[package]/css/styles.min.css`
+  2. You were importing something that wasn't exported from the root, for instance `@uppy/core/lib/foo.js`. You can now only import things we explicitly exported.
+
+  #### Changed imports for `@uppy/react`, `@uppy/vue`, and `@uppy/svelte`
+
+  Some components, like Dashboard, require a peer dependency to work but since all components were exported from a single file you were forced to install all peer dependencies. Even if you never imported, for instance, the status bar component.
+
+  Every component that requires a peer dependency has now been moved to a subpath, such as `@uppy/react/dashboard`, so you only need to install the peer dependencies you need.
+
+  **Example for `@uppy/react`:**
+
+  **Before:**
+
+  ```javascript
+  import { Dashboard, StatusBar } from "@uppy/react";
+  ```
+
+  **Now:**
+
+  ```javascript
+  import Dashboard from "@uppy/react/dashboard";
+  import StatusBar from "@uppy/react/status-bar";
+  ```
+
+## 6.2.2
+
+### Patch Changes
+
+- 1b1a9e3: Define "files" in package.json
+
+## 6.2.0
+
+### Minor Changes
+
+- 0c24c5a: Use TypeScript compiler instead of Babel
+
+## 6.1.4
+
+Released: 2025-05-18
+Included in: Uppy v4.16.0
+
+- @uppy/audio,@uppy/box,@uppy/core,@uppy/dashboard,@uppy/drag-drop,@uppy/dropbox,@uppy/facebook,@uppy/file-input,@uppy/google-drive-picker,@uppy/google-drive,@uppy/google-photos-picker,@uppy/image-editor,@uppy/instagram,@uppy/onedrive,@uppy/remote-sources,@uppy/screen-capture,@uppy/unsplash,@uppy/url,@uppy/utils,@uppy/webcam,@uppy/webdav,@uppy/zoom: ts: make locale strings optional (Merlijn Vos / #5728)
+
 ## 6.1.3
 
 Released: 2025-04-08
@@ -76,7 +198,6 @@ Included in: Uppy v4.0.0-beta.1
 - @uppy/utils: fix `findAllDOMElements` type (Antoine du Hamel / #4997)
 - @uppy/utils: fix `AbortablePromise` type (Antoine du Hamel / #4988)
 - @uppy/utils: migrate RateLimitedQueue to TS (Merlijn Vos / #4981)
-
 
 ## 5.9.0
 

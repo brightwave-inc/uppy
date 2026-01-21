@@ -1,19 +1,27 @@
-import { h, type ComponentChild } from 'preact'
-import { UIPlugin, Uppy } from '@uppy/core'
 import {
-  RequestClient,
   type CompanionPluginOptions,
+  RequestClient,
 } from '@uppy/companion-client'
-import toArray from '@uppy/utils/lib/toArray'
-import type { Meta, Body } from '@uppy/core'
-import type { TagFile } from '@uppy/utils/lib/UppyFile'
-import UrlUI from './UrlUI.jsx'
+import type { Body, Meta } from '@uppy/core'
+import { UIPlugin, type Uppy } from '@uppy/core'
+import type {
+  LocaleStrings,
+  MinimalRequiredUppyFile,
+  RemoteUppyFile,
+} from '@uppy/utils'
+import { toArray } from '@uppy/utils'
+// biome-ignore lint/style/useImportType: h is not a type
+import { type ComponentChild, h } from 'preact'
+import packageJson from '../package.json' with { type: 'json' }
+import locale from './locale.js'
+import UrlUI from './UrlUI.js'
 import forEachDroppedOrPastedUrl from './utils/forEachDroppedOrPastedUrl.js'
 
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore We don't want TS to generate types for the package.json
-import packageJson from '../package.json'
-import locale from './locale.js'
+declare module '@uppy/core' {
+  export interface PluginTypeRegistry<M extends Meta, B extends Body> {
+    Url: Url<M, B>
+  }
+}
 
 function UrlIcon() {
   return (
@@ -71,7 +79,9 @@ type MetaResponse = {
   statusCode: number
 }
 
-export type UrlOptions = CompanionPluginOptions & { locale?: typeof locale }
+export type UrlOptions = CompanionPluginOptions & {
+  locale?: LocaleStrings<typeof locale>
+}
 
 export default class Url<M extends Meta, B extends Body> extends UIPlugin<
   UrlOptions,
@@ -145,7 +155,8 @@ export default class Url<M extends Meta, B extends Body> extends UIPlugin<
     try {
       const meta = await this.getMeta(url)
 
-      const tagFile: TagFile<M> = {
+      const file: Omit<RemoteUppyFile<M, B>, 'name' | 'meta' | 'body'> &
+        Pick<MinimalRequiredUppyFile<M, B>, 'name' | 'meta'> = {
         meta: optionalMeta,
         source: this.id,
         name: meta.name || getFileNameFromUrl(url),
@@ -154,6 +165,7 @@ export default class Url<M extends Meta, B extends Body> extends UIPlugin<
           size: meta.size,
         },
         isRemote: true,
+        // @ts-expect-error TODO: should this be removed? the types say it's not needed
         body: {
           url,
         },
@@ -170,7 +182,7 @@ export default class Url<M extends Meta, B extends Body> extends UIPlugin<
 
       this.uppy.log('[Url] Adding remote file')
       try {
-        return this.uppy.addFile(tagFile)
+        return this.uppy.addFile(file)
       } catch (err) {
         if (!err.isRestriction) {
           this.uppy.log(err)

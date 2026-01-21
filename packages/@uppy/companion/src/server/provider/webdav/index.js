@@ -1,36 +1,33 @@
-
-const Provider = require('../Provider')
-const { getProtectedHttpAgent, validateURL } = require('../../helpers/request')
-const { ProviderApiError, ProviderAuthError } = require('../error')
-const { ProviderUserError } = require('../error')
-const logger = require('../../logger')
+import { AuthType, createClient } from 'webdav'
+import { getProtectedHttpAgent, validateURL } from '../../helpers/request.js'
+import logger from '../../logger.js'
+import {
+  ProviderApiError,
+  ProviderAuthError,
+  ProviderUserError,
+} from '../error.js'
+import Provider from '../Provider.js'
 
 const defaultDirectory = '/'
 
 /**
  * Adapter for WebDAV servers that support simple auth (non-OAuth).
  */
-class WebdavProvider extends Provider {
-  static get hasSimpleAuth () {
+export default class WebdavProvider extends Provider {
+  static get hasSimpleAuth() {
     return true
   }
 
-  // eslint-disable-next-line class-methods-use-this
-  isAuthenticated ({ providerUserSession }) {
+  isAuthenticated({ providerUserSession }) {
     return providerUserSession.webdavUrl != null
   }
 
-  async getClient ({ providerUserSession }) {
+  async getClient({ providerUserSession }) {
     const webdavUrl = providerUserSession?.webdavUrl
     const { allowLocalUrls } = this
     if (!validateURL(webdavUrl, allowLocalUrls)) {
       throw new Error('invalid public link url')
     }
-
-    // dynamic import because Companion currently uses CommonJS and webdav is shipped as ESM
-    // todo implement as regular require as soon as Node 20.17 or 22 is required
-    // or as regular import when Companion is ported to ESM
-    const { AuthType } = await import('webdav') // eslint-disable-line import/no-unresolved
 
     // Is this an ownCloud or Nextcloud public link URL? e.g. https://example.com/s/kFy9Lek5sm928xP
     // they have specific urls that we can identify
@@ -53,11 +50,11 @@ class WebdavProvider extends Provider {
     })
   }
 
-  async logout () { // eslint-disable-line class-methods-use-this
+  async logout() {
     return { revoked: true }
   }
 
-  async simpleAuth ({ requestBody }) {
+  async simpleAuth({ requestBody }) {
     try {
       const providerUserSession = { webdavUrl: requestBody.form.webdavUrl }
 
@@ -71,30 +68,28 @@ class WebdavProvider extends Provider {
       if (['ECONNREFUSED', 'ENOTFOUND'].includes(err.code)) {
         throw new ProviderUserError({ message: 'Cannot connect to server' })
       }
-      // todo report back to the user what actually went wrong
       throw err
     }
   }
 
-  async getClientHelper ({ url, ...options }) {
+  async getClientHelper({ url, ...options }) {
     const { allowLocalUrls } = this
     if (!validateURL(url, allowLocalUrls)) {
       throw new Error('invalid webdav url')
     }
     const { protocol } = new URL(url)
-    const HttpAgentClass = getProtectedHttpAgent({ protocol, allowLocalIPs: !allowLocalUrls })
+    const HttpAgentClass = getProtectedHttpAgent({
+      protocol,
+      allowLocalIPs: !allowLocalUrls,
+    })
 
-    // dynamic import because Companion currently uses CommonJS and webdav is shipped as ESM
-    // todo implement as regular require as soon as Node 20.17 or 22 is required
-    // or as regular import when Companion is ported to ESM
-    const { createClient } = await import('webdav')
     return createClient(url, {
       ...options,
-      [`${protocol}Agent`] : new HttpAgentClass(),
+      [`${protocol}Agent`]: new HttpAgentClass(),
     })
   }
 
-  async list ({ directory, providerUserSession }) {
+  async list({ directory, providerUserSession }) {
     return this.withErrorHandling('provider.webdav.list.error', async () => {
       // @ts-ignore
       if (!this.isAuthenticated({ providerUserSession })) {
@@ -107,19 +102,30 @@ class WebdavProvider extends Provider {
       /** @type {any} */
       const dir = await client.getDirectoryContents(directory || '/')
 
-      dir.forEach(item => {
+      dir.forEach((item) => {
         const isFolder = item.type === 'directory'
-        const requestPath = encodeURIComponent(`${directory || ''}/${item.basename}`)
+        const requestPath = encodeURIComponent(
+          `${directory || ''}/${item.basename}`,
+        )
 
         let modifiedDate
         try {
-         modifiedDate = new Date(item.lastmod).toISOString()
-        } catch (e) {
+          modifiedDate = new Date(item.lastmod).toISOString()
+        } catch (_e) {
           // ignore invalid date from server
+        }
+
+        // Determine icon based on type and MIME type
+        let icon = 'file'
+        if (isFolder) {
+          icon = 'folder'
+        } else if (item.mime?.startsWith('video/')) {
+          icon = 'video'
         }
 
         data.items.push({
           isFolder,
+          icon,
           id: requestPath,
           name: item.basename,
           modifiedDate,
@@ -128,7 +134,6 @@ class WebdavProvider extends Provider {
             mimeType: item.mime,
             size: item.size,
             thumbnail: null,
-
           }),
         })
       })
@@ -137,37 +142,39 @@ class WebdavProvider extends Provider {
     })
   }
 
-  async download ({ id, providerUserSession }) {
-    return this.withErrorHandling('provider.webdav.download.error', async () => {
-      const client = await this.getClient({ providerUserSession })
-      /** @type {any} */
-      const stat = await client.stat(id)
-      const stream = client.createReadStream(`/${id}`)
-      return { stream, size: stat.size }
-    })
+  async download({ id, providerUserSession }) {
+    return this.withErrorHandling(
+      'provider.webdav.download.error',
+      async () => {
+        const client = await this.getClient({ providerUserSession })
+        /** @type {any} */
+        const stat = await client.stat(id)
+        const stream = client.createReadStream(`/${id}`)
+        return { stream, size: stat.size }
+      },
+    )
   }
 
-  // eslint-disable-next-line
-  async thumbnail ({ id, providerUserSession }) {
+  async thumbnail({ id, providerUserSession }) {
     // not implementing this because a public thumbnail from webdav will be used instead
-    logger.error('call to thumbnail is not implemented', 'provider.webdav.thumbnail.error')
+    logger.error(
+      'call to thumbnail is not implemented',
+      'provider.webdav.thumbnail.error',
+    )
     throw new Error('call to thumbnail is not implemented')
   }
 
-  // eslint-disable-next-line class-methods-use-this
-  async withErrorHandling (tag, fn) {
+  async withErrorHandling(tag, fn) {
     try {
       return await fn()
     } catch (err) {
       let err2 = err
       if (err.status === 401) err2 = new ProviderAuthError()
       if (err.response) {
-        err2 = new ProviderApiError('WebDAV API error', err.status) // todo improve (read err?.response?.body readable stream and parse response)
+        err2 = new ProviderApiError('WebDAV API error', err.status)
       }
       logger.error(err2, tag)
       throw err2
     }
   }
 }
-
-module.exports = WebdavProvider

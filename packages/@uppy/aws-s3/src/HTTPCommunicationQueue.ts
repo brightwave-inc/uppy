@@ -1,13 +1,14 @@
-import type { Meta, Body, UppyFile } from '@uppy/core'
-import type {
-  RateLimitedQueue,
-  WrapPromiseFunctionType,
-} from '@uppy/utils/lib/RateLimitedQueue'
-import { pausingUploadReason, type Chunk } from './MultipartUploader.js'
+import type { Body, Meta, UppyFile } from '@uppy/core'
+import type { RateLimitedQueue, WrapPromiseFunctionType } from '@uppy/utils'
 import type AwsS3Multipart from './index.js'
-import { throwIfAborted } from './utils.js'
+import type {
+  AwsS3MultipartOptions,
+  AwsS3UploadParameters,
+  uploadPartBytes,
+} from './index.js'
+import { type Chunk, pausingUploadReason } from './MultipartUploader.js'
 import type { UploadPartBytesResult, UploadResult } from './utils.js'
-import type { AwsS3MultipartOptions, uploadPartBytes } from './index.js'
+import { throwIfAborted } from './utils.js'
 
 function removeMetadataFromURL(urlString: string) {
   const urlObject = new URL(urlString)
@@ -180,12 +181,14 @@ export class HTTPCommunicationQueue<M extends Meta, B extends Body> {
     file: UppyFile<M, B>,
     signal: AbortSignal,
   ): Promise<UploadResult> {
-    let cachedResult
+    let cachedResult: Promise<UploadResult> | UploadResult | undefined
     // As the cache is updated asynchronously, there could be a race condition
     // where we just miss a new result so we loop here until we get nothing back,
     // at which point it's out turn to create a new cache entry.
-    // eslint-disable-next-line no-cond-assign
-    while ((cachedResult = this.#cache.get(file.data)) != null) {
+    for (;;) {
+      if (file.data == null) throw new Error('File data is empty')
+      cachedResult = this.#cache.get(file.data)
+      if (cachedResult == null) break
       try {
         return await cachedResult
       } catch {
@@ -197,6 +200,7 @@ export class HTTPCommunicationQueue<M extends Meta, B extends Body> {
     const promise = this.#createMultipartUpload(this.#getFile(file), signal)
 
     const abortPromise = () => {
+      if (file.data == null) throw new Error('File data is empty')
       promise.abort(signal.reason)
       this.#cache.delete(file.data)
     }
@@ -206,10 +210,12 @@ export class HTTPCommunicationQueue<M extends Meta, B extends Body> {
       async (result) => {
         signal.removeEventListener('abort', abortPromise)
         this.#setS3MultipartState(file, result)
+        if (file.data == null) throw new Error('File data is empty')
         this.#cache.set(file.data, result)
       },
       () => {
         signal.removeEventListener('abort', abortPromise)
+        if (file.data == null) throw new Error('File data is empty')
         this.#cache.delete(file.data)
       },
     )
@@ -218,6 +224,7 @@ export class HTTPCommunicationQueue<M extends Meta, B extends Body> {
   }
 
   async abortFileUpload(file: UppyFile<M, B>): Promise<void> {
+    if (file.data == null) throw new Error('File data is empty')
     const result = this.#cache.get(file.data)
     if (result == null) {
       // If the createMultipartUpload request never was made, we don't
@@ -228,7 +235,7 @@ export class HTTPCommunicationQueue<M extends Meta, B extends Body> {
     // use the soon-to-be aborted cached values.
     this.#cache.delete(file.data)
     this.#setS3MultipartState(file, Object.create(null))
-    let awaitedResult
+    let awaitedResult: UploadResult
     try {
       awaitedResult = await result
     } catch {
@@ -323,6 +330,7 @@ export class HTTPCommunicationQueue<M extends Meta, B extends Body> {
   }
 
   restoreUploadFile(file: UppyFile<M, B>, uploadIdAndKey: UploadResult): void {
+    if (file.data == null) throw new Error('File data is empty')
     this.#cache.set(file.data, uploadIdAndKey)
   }
 
@@ -392,7 +400,7 @@ export class HTTPCommunicationQueue<M extends Meta, B extends Body> {
       throwIfAborted(signal)
       const chunkData = chunk.getData()
       const { onProgress, onComplete } = chunk
-      let signature
+      let signature: AwsS3UploadParameters
 
       try {
         signature = await this.#fetchSignature(this.#getFile(file), {
@@ -409,7 +417,6 @@ export class HTTPCommunicationQueue<M extends Meta, B extends Body> {
           throw err
         }
         await new Promise((resolve) => setTimeout(resolve, timeout))
-        // eslint-disable-next-line no-continue
         continue
       }
 

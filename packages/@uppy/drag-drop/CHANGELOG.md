@@ -1,5 +1,78 @@
 # @uppy/drag-drop
 
+## 5.1.0
+
+### Minor Changes
+
+- 79e6460: - Add PluginTypeRegistry and typed getPlugin overload in @uppy/core
+  - Register plugin ids across packages so uppy.getPlugin('Dashboard' | 'Webcam') returns the concrete plugin type and removes the need to pass generics in getPlugin()
+
+### Patch Changes
+
+- Updated dependencies [79e6460]
+- Updated dependencies [ac12f35]
+- Updated dependencies [4817585]
+  - @uppy/core@5.2.0
+  - @uppy/utils@7.1.4
+
+## 5.0.2
+
+### Patch Changes
+
+- 975317d: Removed "main" from package.json, since export maps serve as the contract for the public API.
+- Updated dependencies [4b6a76c]
+- Updated dependencies [975317d]
+- Updated dependencies [9bac4c8]
+  - @uppy/core@5.0.2
+  - @uppy/utils@7.0.2
+
+## 5.0.1
+
+### Patch Changes
+
+- 49522ec: Remove preact/compat imports in favor of preact, preventing JSX type issues in certain setups.
+- Updated dependencies [49522ec]
+  - @uppy/utils@7.0.1
+  - @uppy/core@5.0.1
+
+## 5.0.0
+
+### Major Changes
+
+- 3290864: All packages now have export maps. This is a breaking change in two cases:
+
+  1. The css imports have changed from `@uppy[package]/dist/styles.min.css` to `@uppy[package]/css/styles.min.css`
+  2. You were importing something that wasn't exported from the root, for instance `@uppy/core/lib/foo.js`. You can now only import things we explicitly exported.
+
+## 4.2.2
+
+### Patch Changes
+
+- 1b1a9e3: Define "files" in package.json
+- Updated dependencies [1b1a9e3]
+  - @uppy/utils@6.2.2
+  - @uppy/core@4.5.2
+
+## 4.2.0
+
+### Minor Changes
+
+- 0c24c5a: Use TypeScript compiler instead of Babel
+
+### Patch Changes
+
+- Updated dependencies [0c24c5a]
+- Updated dependencies [0c24c5a]
+  - @uppy/core@4.5.0
+  - @uppy/utils@6.2.0
+
+## 4.1.3
+
+Released: 2025-05-18
+Included in: Uppy v4.16.0
+
+- @uppy/audio,@uppy/box,@uppy/core,@uppy/dashboard,@uppy/drag-drop,@uppy/dropbox,@uppy/facebook,@uppy/file-input,@uppy/google-drive-picker,@uppy/google-drive,@uppy/google-photos-picker,@uppy/image-editor,@uppy/instagram,@uppy/onedrive,@uppy/remote-sources,@uppy/screen-capture,@uppy/unsplash,@uppy/url,@uppy/utils,@uppy/webcam,@uppy/webdav,@uppy/zoom: ts: make locale strings optional (Merlijn Vos / #5728)
+
 ## 4.1.0
 
 Released: 2025-01-06
@@ -26,7 +99,7 @@ Included in: Uppy v4.6.0
 Released: 2024-10-15
 Included in: Uppy v4.5.0
 
-- @uppy/dashboard,@uppy/drag-drop,@uppy/file-input:  `.handleInputChange()` - use `.currentTarget`; clear the input using `''` (Evgenia Karunus / #5381)
+- @uppy/dashboard,@uppy/drag-drop,@uppy/file-input: `.handleInputChange()` - use `.currentTarget`; clear the input using `''` (Evgenia Karunus / #5381)
 
 ## 4.0.2
 

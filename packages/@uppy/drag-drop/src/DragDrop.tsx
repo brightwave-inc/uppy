@@ -1,21 +1,22 @@
-import { UIPlugin } from '@uppy/core'
 import type {
+  Body,
+  DefinePluginOpts,
+  Meta,
   UIPluginOptions,
   Uppy,
-  DefinePluginOpts,
-  Body,
-  Meta,
 } from '@uppy/core'
-import type { TargetedEvent } from 'preact/compat'
-import toArray from '@uppy/utils/lib/toArray'
-import isDragDropSupported from '@uppy/utils/lib/isDragDropSupported'
-import getDroppedFiles from '@uppy/utils/lib/getDroppedFiles'
-import { h, type ComponentChild } from 'preact'
-
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore We don't want TS to generate types for the package.json
-import packageJson from '../package.json'
+import { UIPlugin } from '@uppy/core'
+import type { LocaleStrings } from '@uppy/utils'
+import { getDroppedFiles, isDragDropSupported, toArray } from '@uppy/utils'
+import type { ComponentChild, h } from 'preact'
+import packageJson from '../package.json' with { type: 'json' }
 import locale from './locale.js'
+
+declare module '@uppy/core' {
+  export interface PluginTypeRegistry<M extends Meta, B extends Body> {
+    DragDrop: DragDrop<M, B>
+  }
+}
 
 export interface DragDropOptions extends UIPluginOptions {
   inputName?: string
@@ -26,7 +27,7 @@ export interface DragDropOptions extends UIPluginOptions {
   onDragOver?: (event: DragEvent) => void
   onDragLeave?: (event: DragEvent) => void
   onDrop?: (event: DragEvent) => void
-  locale?: typeof locale
+  locale?: LocaleStrings<typeof locale>
 }
 
 const defaultOptions = {
@@ -85,7 +86,9 @@ export default class DragDrop<M extends Meta, B extends Body> extends UIPlugin<
     }
   }
 
-  private onInputChange = (event: TargetedEvent<HTMLInputElement, Event>) => {
+  private onInputChange = (
+    event: h.JSX.TargetedEvent<HTMLInputElement, Event>,
+  ) => {
     const files = toArray(event.currentTarget.files || [])
     if (files.length > 0) {
       this.uppy.log('[DragDrop] Files selected through input')
@@ -94,7 +97,6 @@ export default class DragDrop<M extends Meta, B extends Body> extends UIPlugin<
 
     // Clear the input so that Chrome can detect file section when the same file is repeatedly selected
     // (see https://github.com/transloadit/uppy/issues/768#issuecomment-2264902758)
-    // eslint-disable-next-line no-param-reassign
     event.currentTarget.value = ''
   }
 
@@ -107,7 +109,6 @@ export default class DragDrop<M extends Meta, B extends Body> extends UIPlugin<
     const hasFiles = types.some((type) => type === 'Files')
     const { allowNewUpload } = this.uppy.getState()
     if (!hasFiles || !allowNewUpload) {
-      // eslint-disable-next-line no-param-reassign
       event.dataTransfer!.dropEffect = 'none'
       return
     }
@@ -116,7 +117,6 @@ export default class DragDrop<M extends Meta, B extends Body> extends UIPlugin<
     // (and prevent browsers from interpreting this as files being _moved_ into the browser
     // https://github.com/transloadit/uppy/issues/1978)
     //
-    // eslint-disable-next-line no-param-reassign
     event.dataTransfer!.dropEffect = 'copy'
 
     this.setPluginState({ isDraggingOver: true })

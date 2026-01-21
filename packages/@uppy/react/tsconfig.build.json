@@ -4,7 +4,6 @@
     "outDir": "./lib",
     "jsxImportSource": "react",
     "jsx": "react-jsx",
-    "resolveJsonModule": false,
     "rootDir": "./src"
   },
   "include": ["./src/**/*.*"],
@@ -17,16 +16,16 @@
       "path": "../core/tsconfig.build.json"
     },
     {
+      "path": "../components/tsconfig.build.json"
+    },
+    {
       "path": "../dashboard/tsconfig.build.json"
     },
     {
-      "path": "../drag-drop/tsconfig.build.json"
+      "path": "../screen-capture/tsconfig.build.json"
     },
     {
-      "path": "../file-input/tsconfig.build.json"
-    },
-    {
-      "path": "../progress-bar/tsconfig.build.json"
+      "path": "../webcam/tsconfig.build.json"
     },
     {
       "path": "../status-bar/tsconfig.build.json"

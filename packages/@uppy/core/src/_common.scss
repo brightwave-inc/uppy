@@ -1,3 +1,8 @@
+@use "sass:color";
+
+@use './_variables.scss' as *;
+@use './_utils.scss' as *;
+
 /**
 * General Uppy styles that apply to everything inside the .uppy-Root container
 */
@@ -42,6 +47,12 @@
 
 [dir='rtl'] .uppy-u-reset {
   text-align: right;
+}
+
+.uppy-truncate-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 // Inputs
@@ -128,7 +139,7 @@
   border-radius: 4px;
 
   &:not(:disabled):hover {
-    background-color: darken($blue, 10%);
+    background-color: color.adjust($blue, $lightness: -10%, $space: hsl);
   }
 
   &:focus {

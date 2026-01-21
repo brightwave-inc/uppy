@@ -1,31 +1,26 @@
-import { BasePlugin } from '@uppy/core'
+import type { RequestClient } from '@uppy/companion-client'
 import type {
-  Uppy,
-  DefinePluginOpts,
-  PluginOpts,
-  Meta,
   Body,
+  DefinePluginOpts,
+  Meta,
+  PluginOpts,
+  Uppy,
   UppyFile,
 } from '@uppy/core'
-import * as tus from 'tus-js-client'
-import EventManager from '@uppy/core/lib/EventManager.js'
-import NetworkError from '@uppy/utils/lib/NetworkError'
-import isNetworkError from '@uppy/utils/lib/isNetworkError'
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore untyped
-import { RateLimitedQueue } from '@uppy/utils/lib/RateLimitedQueue'
-import hasProperty from '@uppy/utils/lib/hasProperty'
+import { BasePlugin, EventManager } from '@uppy/core'
 import {
-  filterNonFailedFiles,
   filterFilesToEmitUploadStarted,
-} from '@uppy/utils/lib/fileFilters'
-import type { RequestClient } from '@uppy/companion-client'
-import getAllowedMetaFields from '@uppy/utils/lib/getAllowedMetaFields'
+  filterFilesToUpload,
+  getAllowedMetaFields,
+  hasProperty,
+  isNetworkError,
+  type LocalUppyFile,
+  NetworkError,
+  RateLimitedQueue,
+} from '@uppy/utils'
+import * as tus from 'tus-js-client'
+import packageJson from '../package.json' with { type: 'json' }
 import getFingerprint from './getFingerprint.js'
-
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore We don't want TS to generate types for the package.json
-import packageJson from '../package.json'
 
 type RestTusUploadOptions = Omit<
   tus.UploadOptions,
@@ -102,10 +97,18 @@ type Opts<M extends Meta, B extends Body> = DefinePluginOpts<
   keyof typeof defaultOptions
 >
 
-declare module '@uppy/utils/lib/UppyFile' {
-  // eslint-disable-next-line no-shadow, @typescript-eslint/no-unused-vars
-  export interface UppyFile<M extends Meta, B extends Body> {
+declare module '@uppy/utils' {
+  export interface LocalUppyFile<M extends Meta, B extends Body> {
     tus?: TusOpts<M, B>
+  }
+  export interface RemoteUppyFile<M extends Meta, B extends Body> {
+    tus?: TusOpts<M, B>
+  }
+}
+
+declare module '@uppy/core' {
+  export interface PluginTypeRegistry<M extends Meta, B extends Body> {
+    Tus: Tus<M, B>
   }
 }
 
@@ -211,13 +214,17 @@ export default class Tus<M extends Meta, B extends Body> extends BasePlugin<
    *    up a spot in the queue.
    *
    */
-  #uploadLocalFile(file: UppyFile<M, B>): Promise<tus.Upload | string> {
+  async #uploadLocalFile(
+    file: LocalUppyFile<M, B>,
+  ): Promise<tus.Upload | string> {
     this.resetUploaderReferences(file.id)
 
     // Create a new tus upload
     return new Promise<tus.Upload | string>((resolve, reject) => {
       let queuedRequest: ReturnType<RateLimitedQueue['run']>
+      // biome-ignore lint/style/useConst: ...
       let qRequest: () => () => void
+      // biome-ignore lint/style/useConst: ...
       let upload: tus.Upload
 
       const opts = {
@@ -246,7 +253,7 @@ export default class Tus<M extends Meta, B extends Body> extends BasePlugin<
         const xhr = req.getUnderlyingObject()
         xhr.withCredentials = !!opts.withCredentials
 
-        let userProvidedPromise
+        let userProvidedPromise: Promise<void> | void
         if (typeof onBeforeRequest === 'function') {
           userProvidedPromise = onBeforeRequest(req, file)
         }
@@ -255,7 +262,6 @@ export default class Tus<M extends Meta, B extends Body> extends BasePlugin<
           if (!queuedRequest.shouldBeRequeued) return Promise.reject()
           // TODO: switch to `Promise.withResolvers` on the next major if available.
           let done: () => void
-          // eslint-disable-next-line promise/param-names
           const p = new Promise<void>((res) => {
             done = res
           })
@@ -274,9 +280,11 @@ export default class Tus<M extends Meta, B extends Body> extends BasePlugin<
           // This means we can hold the Tus retry here with a `Promise.all`,
           // together with the returned value of the user provided
           // `onBeforeRequest` option callback (in case it returns a promise).
+          // @ts-expect-error it's fine
           await Promise.all([p, userProvidedPromise])
           return undefined
         }
+        // @ts-expect-error it's fine
         return userProvidedPromise
       }
 
@@ -284,11 +292,10 @@ export default class Tus<M extends Meta, B extends Body> extends BasePlugin<
         this.uppy.log(err)
 
         const xhr =
-          (err as tus.DetailedError).originalRequest != null ?
-            (err as tus.DetailedError).originalRequest.getUnderlyingObject()
-          : null
+          (err as tus.DetailedError).originalRequest != null
+            ? (err as tus.DetailedError).originalRequest.getUnderlyingObject()
+            : null
         if (isNetworkError(xhr)) {
-          // eslint-disable-next-line no-param-reassign
           err = new NetworkError(err, xhr)
         }
 
@@ -418,7 +425,6 @@ export default class Tus<M extends Meta, B extends Body> extends BasePlugin<
         destProp: string,
       ) => {
         if (hasProperty(obj, srcProp) && !hasProperty(obj, destProp)) {
-          // eslint-disable-next-line no-param-reassign
           obj[destProp] = obj[srcProp]
         }
       }
@@ -445,12 +451,12 @@ export default class Tus<M extends Meta, B extends Body> extends BasePlugin<
 
       uploadOptions.metadata = meta
 
+      if (file.data == null) throw new Error('File data is empty')
       upload = new tus.Upload(file.data, uploadOptions)
       this.uploaders[file.id] = upload
       const eventManager = new EventManager(this.uppy)
       this.uploaderEvents[file.id] = eventManager
 
-      // eslint-disable-next-line prefer-const
       qRequest = () => {
         if (!file.isPaused) {
           upload.start()
@@ -546,18 +552,18 @@ export default class Tus<M extends Meta, B extends Body> extends BasePlugin<
     }
 
     return {
-      ...file.remote?.body,
+      ...('remote' in file && file.remote.body),
       endpoint: opts.endpoint,
       uploadUrl: opts.uploadUrl,
       protocol: 'tus',
-      size: file.data.size,
+      size: file.data!.size,
       headers: opts.headers,
       metadata: file.meta,
     }
   }
 
   async #uploadFiles(files: UppyFile<M, B>[]) {
-    const filesFiltered = filterNonFailedFiles(files)
+    const filesFiltered = filterFilesToUpload(files)
     const filesToEmit = filterFilesToEmitUploadStarted(filesFiltered)
     this.uppy.emit('upload-start', filesToEmit)
 

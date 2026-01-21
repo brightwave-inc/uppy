@@ -1,15 +1,14 @@
-/* eslint-disable react/destructuring-assignment */
-import { h, Component, Fragment, type ComponentChild } from 'preact'
-import type { I18n } from '@uppy/utils/lib/Translator'
-import type Translator from '@uppy/utils/lib/Translator'
-import type { TargetedEvent } from 'preact/compat'
-import type { DashboardState, TargetWithRender } from '../Dashboard'
+import type { I18n, Translator } from '@uppy/utils'
+import { Component, type ComponentChild, Fragment, type h } from 'preact'
+import type { DashboardState, TargetWithRender } from '../Dashboard.js'
 
 interface AddFilesProps {
   i18n: I18n
   i18nArray: Translator['translateArray']
   acquirers: TargetWithRender[]
-  handleInputChange: (event: TargetedEvent<HTMLInputElement, Event>) => void
+  handleInputChange: (
+    event: h.JSX.TargetedEvent<HTMLInputElement, Event>,
+  ) => void
   maxNumberOfFiles: number | null
   allowedFileTypes: string[] | null
   showNativePhotoCameraButton: boolean
@@ -49,13 +48,12 @@ class AddFiles extends Component<AddFilesProps> {
   }
 
   private onFileInputChange = (
-    event: TargetedEvent<HTMLInputElement, Event>,
+    event: h.JSX.TargetedEvent<HTMLInputElement, Event>,
   ) => {
     this.props.handleInputChange(event)
 
     // Clear the input so that Chrome/Safari/etc. can detect file section when the same file is repeatedly selected
     // (see https://github.com/transloadit/uppy/issues/768#issuecomment-2264902758)
-    // eslint-disable-next-line no-param-reassign
     event.currentTarget.value = ''
   }
 
@@ -98,7 +96,9 @@ class AddFiles extends Component<AddFilesProps> {
         type="file"
         name={`camera-${type}`}
         onChange={this.onFileInputChange}
-        capture={nativeCameraFacingMode}
+        capture={
+          nativeCameraFacingMode === '' ? 'environment' : nativeCameraFacingMode
+        }
         accept={accept}
         ref={refCallback}
       />
@@ -250,23 +250,19 @@ class AddFiles extends Component<AddFilesProps> {
 
     return (
       <div class="uppy-Dashboard-AddFiles-title">
-        {
-          // eslint-disable-next-line no-nested-ternary
-          this.props.disableLocalFiles ?
-            this.props.i18n('importFiles')
-          : numberOfAcquirers > 0 ?
-            this.props.i18nArray(`dropPasteImport${camelFMSelectionType}`, {
-              browseFiles,
-              browseFolders,
-              browse: browseFiles,
-            })
-          : this.props.i18nArray(`dropPaste${camelFMSelectionType}`, {
-              browseFiles,
-              browseFolders,
-              browse: browseFiles,
-            })
-
-        }
+        {this.props.disableLocalFiles
+          ? this.props.i18n('importFiles')
+          : numberOfAcquirers > 0
+            ? this.props.i18nArray(`dropPasteImport${camelFMSelectionType}`, {
+                browseFiles,
+                browseFolders,
+                browse: browseFiles,
+              })
+            : this.props.i18nArray(`dropPaste${camelFMSelectionType}`, {
+                browseFiles,
+                browseFolders,
+                browse: browseFiles,
+              })}
       </div>
     )
   }

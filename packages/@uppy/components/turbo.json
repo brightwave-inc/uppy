@@ -1,0 +1,23 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "dependsOn": [
+        "^build",
+        "@uppy/core#build",
+        "@uppy/image-editor#build",
+        "@uppy/screen-capture#build",
+        "@uppy/webcam#build"
+      ],
+      "outputs": ["lib/**"]
+    },
+    "build:css": {
+      "inputs": [
+        "src/input.css",
+        "src/**/*.{js,ts,jsx,tsx}",
+        "tailwind.config.js"
+      ],
+      "outputs": ["dist/styles.css"]
+    }
+  }
+}

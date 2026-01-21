@@ -1,2 +1,5 @@
-export { default } from './ScreenCapture.jsx'
-export type { ScreenCaptureOptions } from './ScreenCapture.jsx'
+export type {
+  ScreenCaptureOptions,
+  ScreenCaptureState,
+} from './ScreenCapture.js'
+export { default, type ScreenCaptureStatus } from './ScreenCapture.js'

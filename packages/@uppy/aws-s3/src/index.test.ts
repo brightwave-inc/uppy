@@ -1,8 +1,16 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  type Mock,
+  vi,
+} from 'vitest'
 
 import 'whatwg-fetch'
+import Core, { type Meta, type UppyFile } from '@uppy/core'
 import nock from 'nock'
-import Core, { type UppyFile } from '@uppy/core'
 import AwsS3Multipart, {
   type AwsBody,
   type AwsS3MultipartOptions,
@@ -28,8 +36,8 @@ describe('AwsS3Multipart', () => {
     let opts: Partial<AwsS3MultipartOptions<any, any>>
 
     beforeEach(() => {
-      const core = new Core<any, AwsBody>().use(AwsS3Multipart)
-      const awsS3Multipart = core.getPlugin('AwsS3Multipart') as any
+      const core = new Core<Meta, AwsBody>().use(AwsS3Multipart)
+      const awsS3Multipart = core.getPlugin('AwsS3Multipart')!
       opts = awsS3Multipart.opts
     })
 
@@ -57,6 +65,7 @@ describe('AwsS3Multipart', () => {
       })
 
       const createFile = (size: number): UppyFile<any, any> => ({
+        name: '',
         size,
         data: new Blob(),
         extension: '',
@@ -116,8 +125,8 @@ describe('AwsS3Multipart', () => {
       const awsS3Multipart = core.getPlugin('AwsS3Multipart')!
 
       const err = 'Expected a `endpoint` option'
-      const file = {}
-      const opts = {}
+      const file = {} as unknown as UppyFile<Meta, Record<string, never>>
+      const opts = {} as any
 
       expect(() => awsS3Multipart.opts.createMultipartUpload(file)).toThrow(err)
       expect(() => awsS3Multipart.opts.listParts(file, opts)).toThrow(err)
@@ -193,11 +202,11 @@ describe('AwsS3Multipart', () => {
   })
 
   describe('without companionUrl (custom main functions)', () => {
-    let core: Core<any, AwsBody>
-    let awsS3Multipart: AwsS3Multipart<any, AwsBody>
+    let core: Core<Meta, AwsBody>
+    let awsS3Multipart: AwsS3Multipart<Meta, AwsBody>
 
     beforeEach(() => {
-      core = new Core<any, AwsBody>()
+      core = new Core<Meta, AwsBody>()
       core.use(AwsS3Multipart, {
         shouldUseMultipart: true,
         limit: 0,
@@ -217,7 +226,7 @@ describe('AwsS3Multipart', () => {
         }),
         listParts: undefined as any,
       })
-      awsS3Multipart = core.getPlugin('AwsS3Multipart') as any
+      awsS3Multipart = core.getPlugin('AwsS3Multipart')!
     })
 
     it('Keeps chunks marked as busy through retries until they complete', async () => {
@@ -256,8 +265,8 @@ describe('AwsS3Multipart', () => {
       scope.persist()
 
       // Spy on the busy/done state of the test chunk (part 7, chunk index 6)
-      let busySpy
-      let doneSpy
+      let busySpy: Mock
+      let doneSpy: Mock
       awsS3Multipart.setOptions({
         shouldUseMultipart: true,
         retryDelays: [10],
@@ -349,17 +358,14 @@ describe('AwsS3Multipart', () => {
         createMultipartUpload,
         completeMultipartUpload: vi.fn(async () => ({ location: 'test' })),
         abortMultipartUpload: vi.fn(() => {
-          // eslint-disable-next-line no-throw-literal
           throw 'should ignore'
         }),
         signPart,
         uploadPartBytes: uploadPartBytes.mockImplementationOnce(() =>
-          // eslint-disable-next-line prefer-promise-reject-errors
           Promise.reject({ source: { status: 500 } }),
         ),
         listParts: undefined as any,
       })
-      const awsS3Multipart = core.getPlugin('AwsS3Multipart')!
       const fileSize = 5 * MB + 1 * MB
 
       core.addFile({
@@ -373,7 +379,7 @@ describe('AwsS3Multipart', () => {
 
       await core.upload()
 
-      expect(awsS3Multipart.opts.uploadPartBytes.mock.calls.length).toEqual(3)
+      expect(uploadPartBytes.mock.calls.length).toEqual(3)
     })
 
     it('calls `upload-error` when uploadPartBytes fails after all retries', async () => {
@@ -394,13 +400,11 @@ describe('AwsS3Multipart', () => {
               setTimeout(() => resolve({ status: 200 }), 100)
             })
           }
-          // eslint-disable-next-line prefer-promise-reject-errors
           return Promise.reject({ source: { status: 500 } })
         }),
         listParts: undefined as any,
       })
       const fileSize = 5 * MB + 1 * MB
-      const awsS3Multipart = core.getPlugin('AwsS3Multipart')!
       const uploadErrorMock = vi.fn()
       const uploadSuccessMock = vi.fn()
       core.on('upload-error', uploadErrorMock)
@@ -432,9 +436,54 @@ describe('AwsS3Multipart', () => {
         // Catch Promise.all reject
       }
 
-      expect(awsS3Multipart.opts.uploadPartBytes.mock.calls.length).toEqual(5)
+      expect(uploadPartBytes.mock.calls.length).toEqual(5)
       expect(uploadErrorMock.mock.calls.length).toEqual(1)
       expect(uploadSuccessMock.mock.calls.length).toEqual(1) // This fails for me becuase upload returned early.
+    })
+
+    it('retries signPart when it fails', async () => {
+      // The retry logic for signPart happens in the uploadChunk method of HTTPCommunicationQueue
+      // For a 6MB file, we expect 2 parts, so signPart should be called for each part
+      let callCount = 0
+      const signPartWithRetry = vi.fn((file, { partNumber }) => {
+        callCount++
+        if (callCount === 1) {
+          // First call fails with a retryable error
+          throw { source: { status: 500 } }
+        }
+        return {
+          url: `https://bucket.s3.us-east-2.amazonaws.com/test/upload/multitest.dat?partNumber=${partNumber}&uploadId=6aeb1980f3fc7ce0b5454d25b71992`,
+        }
+      })
+
+      const core = new Core().use(AwsS3Multipart, {
+        shouldUseMultipart: true,
+        retryDelays: [10],
+        createMultipartUpload: vi.fn(() => ({
+          uploadId: '6aeb1980f3fc7ce0b5454d25b71992',
+          key: 'test/upload/multitest.dat',
+        })),
+        completeMultipartUpload: vi.fn(async () => ({ location: 'test' })),
+        abortMultipartUpload: vi.fn(),
+        signPart: signPartWithRetry,
+        uploadPartBytes: vi.fn().mockResolvedValue({ status: 200 }),
+        listParts: undefined as any,
+      })
+      const fileSize = 5 * MB + 1 * MB
+
+      core.addFile({
+        source: 'vi',
+        name: 'multitest.dat',
+        type: 'application/octet-stream',
+        data: new File([new Uint8Array(fileSize)], '', {
+          type: 'application/octet-stream',
+        }),
+      })
+
+      await core.upload()
+
+      // Should be called 3 times: 1 failed + 1 retry + 1 for second part
+      expect(signPartWithRetry).toHaveBeenCalledTimes(3)
     })
   })
 
@@ -475,8 +524,8 @@ describe('AwsS3Multipart', () => {
   })
 
   describe('dynamic companionHeader using setOption', () => {
-    let core: Core<any, AwsBody>
-    let awsS3Multipart: AwsS3Multipart<any, AwsBody>
+    let core: Core<Meta, AwsBody>
+    let awsS3Multipart: AwsS3Multipart<Meta, AwsBody>
     const newToken = 'new token'
 
     it('companionHeader is updated before uploading file', async () => {
@@ -485,7 +534,7 @@ describe('AwsS3Multipart', () => {
       /* Set up preprocessor */
       core.addPreProcessor(() => {
         awsS3Multipart =
-          core.getPlugin<AwsS3Multipart<any, AwsBody>>('AwsS3Multipart')!
+          core.getPlugin<AwsS3Multipart<Meta, AwsBody>>('AwsS3Multipart')!
         awsS3Multipart.setOptions({
           endpoint: 'http://localhost',
           headers: {

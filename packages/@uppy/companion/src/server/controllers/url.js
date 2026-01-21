@@ -1,11 +1,9 @@
-const express = require('express')
-
-const { startDownUpload } = require('../helpers/upload')
-const { downloadURL } = require('../download')
-const { validateURL } = require('../helpers/request')
-const { getURLMeta } = require('../helpers/request')
-const logger = require('../logger')
-const { respondWithError } = require('../provider/error')
+import express from 'express'
+import { downloadURL } from '../download.js'
+import { getURLMeta, validateURL } from '../helpers/request.js'
+import { startDownUpload } from '../helpers/upload.js'
+import logger from '../logger.js'
+import { respondWithError } from '../provider/error.js'
 
 /**
  * @callback downloadCallback
@@ -24,7 +22,11 @@ const meta = async (req, res) => {
     logger.debug('URL file import handler running', null, req.id)
     const { allowLocalUrls } = req.companion.options
     if (!validateURL(req.body.url, allowLocalUrls)) {
-      logger.debug('Invalid request body detected. Exiting url meta handler.', null, req.id)
+      logger.debug(
+        'Invalid request body detected. Exiting url meta handler.',
+        null,
+        req.id,
+      )
       res.status(400).json({ error: 'Invalid request body' })
       return
     }
@@ -49,7 +51,11 @@ const get = async (req, res) => {
   logger.debug('URL file import handler running', null, req.id)
   const { allowLocalUrls } = req.companion.options
   if (!validateURL(req.body.url, allowLocalUrls)) {
-    logger.debug('Invalid request body detected. Exiting url import handler.', null, req.id)
+    logger.debug(
+      'Invalid request body detected. Exiting url import handler.',
+      null,
+      req.id,
+    )
     res.status(400).json({ error: 'Invalid request body' })
     return
   }
@@ -65,6 +71,8 @@ const get = async (req, res) => {
   }
 }
 
-module.exports = () => express.Router()
-  .post('/meta', express.json(), meta)
-  .post('/get', express.json(), get)
+export default () =>
+  express
+    .Router()
+    .post('/meta', express.json(), meta)
+    .post('/get', express.json(), get)

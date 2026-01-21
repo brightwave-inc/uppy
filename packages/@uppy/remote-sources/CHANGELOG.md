@@ -1,5 +1,144 @@
 # @uppy/remote-sources
 
+## 3.1.0
+
+### Minor Changes
+
+- 79e6460: - Add PluginTypeRegistry and typed getPlugin overload in @uppy/core
+  - Register plugin ids across packages so uppy.getPlugin('Dashboard' | 'Webcam') returns the concrete plugin type and removes the need to pass generics in getPlugin()
+
+### Patch Changes
+
+- Updated dependencies [cc3ff31]
+- Updated dependencies [79e6460]
+- Updated dependencies [ac12f35]
+- Updated dependencies [4817585]
+  - @uppy/dashboard@5.1.0
+  - @uppy/google-drive@5.1.0
+  - @uppy/instagram@5.1.0
+  - @uppy/facebook@5.1.0
+  - @uppy/onedrive@5.1.0
+  - @uppy/unsplash@5.1.0
+  - @uppy/dropbox@5.1.0
+  - @uppy/core@5.2.0
+  - @uppy/zoom@4.1.0
+  - @uppy/box@4.1.0
+  - @uppy/url@5.1.0
+
+## 3.0.1
+
+### Patch Changes
+
+- 975317d: Removed "main" from package.json, since export maps serve as the contract for the public API.
+- Updated dependencies [4b6a76c]
+- Updated dependencies [975317d]
+  - @uppy/core@5.0.2
+  - @uppy/box@4.0.1
+  - @uppy/dashboard@5.0.2
+  - @uppy/dropbox@5.0.1
+  - @uppy/facebook@5.0.1
+  - @uppy/google-drive@5.0.1
+  - @uppy/instagram@5.0.1
+  - @uppy/onedrive@5.0.1
+  - @uppy/unsplash@5.0.1
+  - @uppy/url@5.0.1
+  - @uppy/zoom@4.0.1
+
+## 3.0.0
+
+### Major Changes
+
+- c5b51f6: ### Export maps for all packages
+
+  All packages now have export maps. This is a breaking change in two cases:
+
+  1. The css imports have changed from `@uppy[package]/dist/styles.min.css` to `@uppy[package]/css/styles.min.css`
+  2. You were importing something that wasn't exported from the root, for instance `@uppy/core/lib/foo.js`. You can now only import things we explicitly exported.
+
+  #### Changed imports for `@uppy/react`, `@uppy/vue`, and `@uppy/svelte`
+
+  Some components, like Dashboard, require a peer dependency to work but since all components were exported from a single file you were forced to install all peer dependencies. Even if you never imported, for instance, the status bar component.
+
+  Every component that requires a peer dependency has now been moved to a subpath, such as `@uppy/react/dashboard`, so you only need to install the peer dependencies you need.
+
+  **Example for `@uppy/react`:**
+
+  **Before:**
+
+  ```javascript
+  import { Dashboard, StatusBar } from "@uppy/react";
+  ```
+
+  **Now:**
+
+  ```javascript
+  import Dashboard from "@uppy/react/dashboard";
+  import StatusBar from "@uppy/react/status-bar";
+  ```
+
+### Patch Changes
+
+- Updated dependencies [e869243]
+- Updated dependencies [c5b51f6]
+  - @uppy/dashboard@5.0.0
+  - @uppy/google-drive@5.0.0
+  - @uppy/instagram@5.0.0
+  - @uppy/facebook@5.0.0
+  - @uppy/onedrive@5.0.0
+  - @uppy/unsplash@5.0.0
+  - @uppy/dropbox@5.0.0
+  - @uppy/core@5.0.0
+  - @uppy/zoom@4.0.0
+  - @uppy/box@4.0.0
+  - @uppy/url@5.0.0
+
+## 2.4.2
+
+### Patch Changes
+
+- 1b1a9e3: Define "files" in package.json
+- Updated dependencies [1b1a9e3]
+  - @uppy/google-drive@4.4.2
+  - @uppy/dashboard@4.4.2
+  - @uppy/instagram@4.3.2
+  - @uppy/facebook@4.3.2
+  - @uppy/onedrive@4.3.2
+  - @uppy/unsplash@4.4.2
+  - @uppy/dropbox@4.3.2
+  - @uppy/core@4.5.2
+  - @uppy/zoom@3.3.2
+  - @uppy/box@3.3.2
+  - @uppy/url@4.3.2
+
+## 2.4.0
+
+### Minor Changes
+
+- 0c24c5a: Use TypeScript compiler instead of Babel
+
+### Patch Changes
+
+- Updated dependencies [0c24c5a]
+- Updated dependencies [0c24c5a]
+  - @uppy/core@4.5.0
+  - @uppy/box@3.3.0
+  - @uppy/dashboard@4.4.0
+  - @uppy/dropbox@4.3.0
+  - @uppy/facebook@4.3.0
+  - @uppy/google-drive@4.4.0
+  - @uppy/instagram@4.3.0
+  - @uppy/onedrive@4.3.0
+  - @uppy/unsplash@4.4.0
+  - @uppy/url@4.3.0
+  - @uppy/zoom@3.3.0
+
+## 2.3.3
+
+Released: 2025-05-18
+Included in: Uppy v4.16.0
+
+- @uppy/audio,@uppy/box,@uppy/core,@uppy/dashboard,@uppy/drag-drop,@uppy/dropbox,@uppy/facebook,@uppy/file-input,@uppy/google-drive-picker,@uppy/google-drive,@uppy/google-photos-picker,@uppy/image-editor,@uppy/instagram,@uppy/onedrive,@uppy/remote-sources,@uppy/screen-capture,@uppy/unsplash,@uppy/url,@uppy/utils,@uppy/webcam,@uppy/webdav,@uppy/zoom: ts: make locale strings optional (Merlijn Vos / #5728)
+
 ## 2.3.0
 
 Released: 2025-01-06
